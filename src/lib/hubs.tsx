@@ -42,6 +42,13 @@ const I = {
       <path d="M7 9h2M7 12h2M11 9h6M11 12h6" />
     </svg>
   ),
+  wallet: (
+    <svg viewBox="0 0 24 24">
+      <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
+      <path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2H5" />
+      <circle cx="17" cy="13.5" r="1.3" />
+    </svg>
+  ),
   boxStudent: (
     <svg viewBox="0 0 24 24">
       <path d="M22 10v6M2 10l10-5 10 5-10 5-10-5z" />
@@ -186,6 +193,7 @@ export const HUBS: Record<string, HubConfig> = {
       { icon: I.boxStudent, name: 'Check-in/Check-out Student', desc: 'Device delivery and return — students', href: '/student-checkinout-hub' },
       { icon: I.briefcase, name: 'Check-in/Check-out Employee', desc: 'Device delivery and return — staff', href: '/employee-checkinout-hub' },
       { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub' },
+      { icon: I.wallet, name: 'Budget Management', desc: 'Stato delle commesse IT e inserimento spese', href: '/budget-management' },
     ],
   },
 
