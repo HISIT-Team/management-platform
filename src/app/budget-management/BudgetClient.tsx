@@ -1,9 +1,10 @@
 'use client';
-/* IT Budget Management — dashboard over the four 26/27 budget lines
+/* IT Budget Management — dashboard over one school's 26/27 budget lines
    ("commesse"). Shows the allocation, what has been spent and what is
    left, and lets IT staff record an expense either from a budget-line
    card (line pre-selected) or from the generic "Nuova spesa" button.
-   Expenses are persisted in Supabase (see src/lib/budgets.ts). */
+   Expenses are persisted in Supabase, scoped by school
+   (see src/lib/budgets.ts). */
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
@@ -11,10 +12,9 @@ import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getCurrentUser, loadProfile, profileName } from '@/lib/auth';
 import {
-  BUDGET_LINES,
-  TOTAL_ALLOCATED,
   type BudgetLine,
   type Expense,
+  type School,
   addExpense,
   deleteExpense,
   formatDate,
@@ -23,6 +23,7 @@ import {
   lineByCode,
   listExpenses,
   todayISO,
+  totalAllocated,
   totalsByCode,
 } from '@/lib/budgets';
 
@@ -54,7 +55,7 @@ const IconTrash = (
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
-const IconBack = (
+const IconSwitch = (
   <svg viewBox="0 0 24 24">
     <polyline points="15 18 9 12 15 6" />
   </svg>
@@ -79,13 +80,6 @@ const LINE_ICONS: Record<string, React.ReactNode> = {
     <svg viewBox="0 0 24 24">
       <path d="M3 17l6-6 4 4 8-8" />
       <polyline points="15 7 21 7 21 13" />
-    </svg>
-  ),
-  opex: (
-    <svg viewBox="0 0 24 24">
-      <path d="M21 12a9 9 0 1 1-3.2-6.9" />
-      <polyline points="21 3 21 8 16 8" />
-      <path d="M12 8v4l2.5 2" />
     </svg>
   ),
 };
@@ -118,8 +112,11 @@ const R = 64;
 const CIRC = 2 * Math.PI * R;
 
 /* ── Component ─────────────────────────────────────────────────── */
-export default function BudgetClient() {
+export default function BudgetClient({ school }: { school: School }) {
   const { showToast, toastNode } = useToast();
+
+  const lines = school.lines;
+  const allocated = useMemo(() => totalAllocated(school), [school]);
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,18 +129,18 @@ export default function BudgetClient() {
   const [busy, setBusy] = useState(false);
 
   // Expense form
-  const [fCode, setFCode] = useState(BUDGET_LINES[0].code);
+  const [fCode, setFCode] = useState(lines[0]?.code ?? '');
   const [fDesc, setFDesc] = useState('');
   const [fSupplier, setFSupplier] = useState('');
   const [fAmount, setFAmount] = useState('');
   const [fDate, setFDate] = useState(todayISO());
   const [fNotes, setFNotes] = useState('');
 
-  // Initial load: the ledger, plus the signed-in user's display name (stamped
-  // on every expense they record).
+  // Initial load: this school's ledger, plus the signed-in user's display
+  // name (stamped on every expense they record).
   useEffect(() => {
     let active = true;
-    listExpenses()
+    listExpenses(school.code)
       .then((rows) => {
         if (!active) return;
         setExpenses(rows);
@@ -175,7 +172,7 @@ export default function BudgetClient() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [school.code]);
 
   // Escape closes whichever overlay is open.
   useEffect(() => {
@@ -188,17 +185,17 @@ export default function BudgetClient() {
     return () => window.removeEventListener('keydown', onKey);
   }, [formOpen, toDelete, busy]);
 
-  const spentByCode = useMemo(() => totalsByCode(expenses), [expenses]);
+  const spentByCode = useMemo(() => totalsByCode(school, expenses), [school, expenses]);
   const countByCode = useMemo(() => {
     const out: Record<string, number> = {};
-    for (const b of BUDGET_LINES) out[b.code] = 0;
+    for (const b of lines) out[b.code] = 0;
     for (const e of expenses) out[e.budget_code] = (out[e.budget_code] || 0) + 1;
     return out;
-  }, [expenses]);
+  }, [lines, expenses]);
 
   const totalSpent = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
-  const totalLeft = TOTAL_ALLOCATED - totalSpent;
-  const usedPct = pct(totalSpent, TOTAL_ALLOCATED);
+  const totalLeft = allocated - totalSpent;
+  const usedPct = pct(totalSpent, allocated);
 
   const visible = useMemo(
     () => (filter === 'all' ? expenses : expenses.filter((e) => e.budget_code === filter)),
@@ -207,7 +204,7 @@ export default function BudgetClient() {
   const visibleTotal = useMemo(() => visible.reduce((s, e) => s + e.amount, 0), [visible]);
 
   function openForm(code?: string) {
-    setFCode(code || BUDGET_LINES[0].code);
+    setFCode(code || lines[0]?.code || '');
     setFDesc('');
     setFSupplier('');
     setFAmount('');
@@ -226,6 +223,7 @@ export default function BudgetClient() {
     setBusy(true);
     try {
       const row = await addExpense({
+        school: school.code,
         budget_code: fCode,
         description: fDesc.trim(),
         supplier: fSupplier.trim(),
@@ -261,16 +259,17 @@ export default function BudgetClient() {
     setBusy(false);
   }
 
-  const selectedLine = lineByCode(fCode) || BUDGET_LINES[0];
+  const selectedLine = lineByCode(school, fCode) || lines[0];
   const previewAmount = parseAmount(fAmount);
-  const previewLeft =
-    selectedLine.allocated -
-    (spentByCode[selectedLine.code] || 0) -
-    (Number.isFinite(previewAmount) && previewAmount > 0 ? previewAmount : 0);
+  const previewLeft = selectedLine
+    ? selectedLine.allocated -
+      (spentByCode[selectedLine.code] || 0) -
+      (Number.isFinite(previewAmount) && previewAmount > 0 ? previewAmount : 0)
+    : 0;
 
   return (
     <AuthGuard roles={['it', 'admin']}>
-      <Topbar label="IT" href="/it" variant="home" />
+      <Topbar label="Scuole" href="/budget-management" variant="back" />
       <div className="budget-page">
         <div className="shell">
           {/* ── Head ── */}
@@ -278,11 +277,13 @@ export default function BudgetClient() {
             <div className="b-head-left">
               <div className="logo">{IconWallet}</div>
               <div>
-                <p className="b-eyebrow">H-FARM International School · IT</p>
+                <p className="b-eyebrow">Budget Management · 26/27</p>
                 <h1>
-                  Budget <em>Management</em>
+                  {school.name} <em>Budget</em>
                 </h1>
-                <p>Stato delle commesse IT — anno finanziario 26/27</p>
+                <p>
+                  {school.fullName} · {school.location}
+                </p>
               </div>
             </div>
             <button className="btn-primary" onClick={() => openForm()}>
@@ -295,9 +296,8 @@ export default function BudgetClient() {
             <div className="setup-note">
               <b>Archivio spese non raggiungibile.</b> {setupError}
               <br />
-              Se è la prima volta che apri questa pagina, esegui la migrazione{' '}
-              <code>supabase/migrations/0001_it_budget_expenses.sql</code> nel SQL Editor di Supabase per creare la
-              tabella <code>it_budget_expenses</code>. I totali qui sotto mostrano le commesse a budget pieno.
+              Esegui le migrazioni in <code>supabase/migrations/</code> nel SQL Editor di Supabase. I totali qui sotto
+              mostrano le commesse a budget pieno.
             </div>
           ) : null}
 
@@ -321,7 +321,7 @@ export default function BudgetClient() {
                       cx="80"
                       cy="80"
                       r={R}
-                      stroke={totalSpent > TOTAL_ALLOCATED ? '#A32D2D' : 'url(#budget-arc)'}
+                      stroke={totalSpent > allocated ? '#A32D2D' : 'url(#budget-arc)'}
                       strokeDasharray={CIRC}
                       strokeDashoffset={CIRC * (1 - Math.min(Math.max(usedPct, 0), 100) / 100)}
                     />
@@ -336,8 +336,8 @@ export default function BudgetClient() {
                   <div className="stat-row">
                     <div className="stat">
                       <div className="stat-lbl">Budget totale</div>
-                      <div className="stat-val">{formatEURShort(TOTAL_ALLOCATED)}</div>
-                      <div className="stat-sub">{BUDGET_LINES.length} commesse attive</div>
+                      <div className="stat-val">{formatEURShort(allocated)}</div>
+                      <div className="stat-sub">{lines.length} commesse attive</div>
                     </div>
                     <div className="stat is-spent">
                       <div className="stat-lbl">Speso</div>
@@ -352,24 +352,24 @@ export default function BudgetClient() {
                       <div className="stat-sub">
                         {totalLeft < 0
                           ? 'Budget superato'
-                          : pct(totalLeft, TOTAL_ALLOCATED).toFixed(1).replace('.', ',') + '% residuo'}
+                          : pct(totalLeft, allocated).toFixed(1).replace('.', ',') + '% residuo'}
                       </div>
                     </div>
                   </div>
 
                   <div className="segbar" role="img" aria-label="Ripartizione della spesa per commessa">
-                    {BUDGET_LINES.map((l) => (
+                    {lines.map((l) => (
                       <i
                         key={l.code}
                         style={{
-                          width: Math.min(pct(spentByCode[l.code] || 0, TOTAL_ALLOCATED), 100) + '%',
+                          width: Math.min(pct(spentByCode[l.code] || 0, allocated), 100) + '%',
                           background: l.accent,
                         }}
                       />
                     ))}
                   </div>
                   <div className="legend">
-                    {BUDGET_LINES.map((l) => (
+                    {lines.map((l) => (
                       <span className="legend-item" key={l.code}>
                         <i className="legend-dot" style={{ background: l.accent }} />
                         {l.name.replace(' 26/27', '')} · <b>{formatEURShort(spentByCode[l.code] || 0)}</b>
@@ -384,7 +384,7 @@ export default function BudgetClient() {
           {/* ── Budget lines ── */}
           <h2 className="section-label">Commesse</h2>
           <div className="lines">
-            {BUDGET_LINES.map((l) => {
+            {lines.map((l) => {
               const spent = spentByCode[l.code] || 0;
               const left = l.allocated - spent;
               const st = statusOf(spent, l.allocated);
@@ -440,7 +440,7 @@ export default function BudgetClient() {
             <button className={'fchip' + (filter === 'all' ? ' active' : '')} onClick={() => setFilter('all')}>
               Tutte le commesse
             </button>
-            {BUDGET_LINES.map((l) => (
+            {lines.map((l) => (
               <button
                 key={l.code}
                 className={'fchip' + (filter === l.code ? ' active' : '')}
@@ -477,7 +477,7 @@ export default function BudgetClient() {
                   </thead>
                   <tbody>
                     {visible.map((e) => {
-                      const l = lineByCode(e.budget_code);
+                      const l = lineByCode(school, e.budget_code);
                       return (
                         <tr key={e.id}>
                           <td className="col-date">{formatDate(e.spent_on)}</td>
@@ -497,7 +497,7 @@ export default function BudgetClient() {
                                 {l.name.replace(' 26/27', '')}
                               </span>
                             ) : (
-                              e.budget_code
+                              <span className="tag tag--orphan">{e.budget_code}</span>
                             )}
                           </td>
                           <td className="col-amount">− {formatEUR(e.amount)}</td>
@@ -516,7 +516,7 @@ export default function BudgetClient() {
                     })}
                     <tr>
                       <td colSpan={3} style={{ fontWeight: 700 }}>
-                        Totale {filter === 'all' ? 'movimenti' : lineByCode(filter)?.name}
+                        Totale {filter === 'all' ? 'movimenti' : lineByCode(school, filter)?.name}
                       </td>
                       <td className="col-amount">{formatEUR(visibleTotal)}</td>
                       <td />
@@ -528,20 +528,20 @@ export default function BudgetClient() {
           </div>
 
           <p style={{ marginTop: '1.25rem' }}>
-            <Link className="btn-quiet" href="/it" style={{ textDecoration: 'none' }}>
-              {IconBack}
-              Torna a IT
+            <Link className="btn-quiet" href="/budget-management" style={{ textDecoration: 'none' }}>
+              {IconSwitch}
+              Cambia scuola
             </Link>
           </p>
 
           <footer className="b-footer">
-            H-FARM International School · IT — Budget Management
+            H-FARM International School · IT — Budget Management {school.name}
             <span>Via Adriano Olivetti 1 - 31056 Roncade (TV)</span>
           </footer>
         </div>
 
         {/* ── New expense modal ── */}
-        {formOpen ? (
+        {formOpen && selectedLine ? (
           <div
             className="b-overlay"
             role="dialog"
@@ -556,7 +556,7 @@ export default function BudgetClient() {
                 <div className="mi">{IconPlus}</div>
                 <div>
                   <h2>Nuova spesa</h2>
-                  <p>L&apos;importo viene scalato dalla commessa scelta</p>
+                  <p>{school.name} · l&apos;importo viene scalato dalla commessa scelta</p>
                 </div>
                 <button className="b-modal-close" onClick={() => setFormOpen(false)} disabled={busy} aria-label="Chiudi">
                   {IconClose}
@@ -569,7 +569,7 @@ export default function BudgetClient() {
                     Commessa <span className="req">*</span>
                   </label>
                   <div className="line-picker">
-                    {BUDGET_LINES.map((l) => {
+                    {lines.map((l) => {
                       const left = l.allocated - (spentByCode[l.code] || 0);
                       return (
                         <button
@@ -686,7 +686,10 @@ export default function BudgetClient() {
                 <p className="confirm-text">
                   <strong>{toDelete.description}</strong> — {formatEUR(toDelete.amount)} del{' '}
                   {formatDate(toDelete.spent_on)}
-                  {lineByCode(toDelete.budget_code) ? ' su ' + lineByCode(toDelete.budget_code)!.name : ''}.
+                  {lineByCode(school, toDelete.budget_code)
+                    ? ' su ' + lineByCode(school, toDelete.budget_code)!.name
+                    : ''}
+                  .
                 </p>
               </div>
               <div className="b-modal-foot">

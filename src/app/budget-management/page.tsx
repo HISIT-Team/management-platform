@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import BudgetClient from './BudgetClient';
+import SchoolPickerClient from './SchoolPickerClient';
 
 export const metadata: Metadata = { title: { absolute: 'Budget Management — IT' } };
 
 export default function Page() {
-  return <BudgetClient />;
+  return <SchoolPickerClient />;
 }

@@ -24,7 +24,6 @@ export interface HubConfig {
   titleSpan: string;
   subtitle?: string;
   footer: string;
-  columns?: 2 | 3;
   cards: HubCard[];
 }
 
@@ -67,13 +66,12 @@ function Card({ card }: { card: HubCard }) {
 }
 
 export default function HubPage({ config }: { config: HubConfig }) {
-  const cardsClass = config.columns === 3 ? 'cards' : 'cards cards--2';
   return (
     <AuthGuard roles={config.roles}>
       <Topbar label={config.topbar.label} href={config.topbar.href} variant={config.topbar.variant} />
       <div className="page">
         <Header titlePre={config.titlePre} titleSpan={config.titleSpan} subtitle={config.subtitle} />
-        <main className={cardsClass}>
+        <main className="cards">
           {config.cards.map((card, i) => (
             <Card key={i} card={card} />
           ))}

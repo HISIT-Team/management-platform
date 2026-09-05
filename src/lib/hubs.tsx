@@ -172,7 +172,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Management',
     subtitle: 'Student boarding tools and resources',
     footer: FOOTER.boarding,
-    columns: 3,
     cards: [
       { icon: I.house, name: 'Room Assignment', desc: 'Assign students to rooms', href: '/room-assignment-hub' },
       { icon: I.shieldPlus, name: 'Request for Medicines', desc: 'Medicine requests and consent registry', href: '/request-medicines-hub' },
@@ -187,13 +186,12 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Platform',
     subtitle: 'Device management, deliveries and inventory',
     footer: FOOTER.itPlatform,
-    columns: 2,
     cards: [
       { icon: I.asset, name: 'Asset Manager', desc: 'Inventory and device management', href: 'https://assetmanager.h-farm.com/', external: true },
       { icon: I.boxStudent, name: 'Check-in/Check-out Student', desc: 'Device delivery and return — students', href: '/student-checkinout-hub' },
       { icon: I.briefcase, name: 'Check-in/Check-out Employee', desc: 'Device delivery and return — staff', href: '/employee-checkinout-hub' },
       { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub' },
-      { icon: I.wallet, name: 'Budget Management', desc: 'Stato delle commesse IT e inserimento spese', href: '/budget-management' },
+      { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — Venezia, Vicenza', href: '/budget-management' },
     ],
   },
 
@@ -204,7 +202,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Management',
     subtitle: 'Personnel tools and resources',
     footer: FOOTER.hr,
-    columns: 2,
     cards: [
       { icon: I.people, name: 'Employee Management', desc: 'Onboarding & offboarding', href: '/employee-management-hub' },
       { icon: I.grid, name: 'Registry', desc: 'Onboarding & offboarding registries', href: '/hr-registry-hub' },
@@ -218,7 +215,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Office',
     subtitle: 'Student forms and administrative requests',
     footer: FOOTER.office,
-    columns: 2,
     cards: [
       { icon: I.exit, name: 'Student Exit Delegation', desc: 'Authorise a delegate to pick up a student', href: '#', badge: { text: 'Coming soon', soon: true } },
       { icon: I.bus, name: 'Bus Transfer Request', desc: 'Request a change of bus route or stop', href: '#', badge: { text: 'Coming soon', soon: true } },
@@ -232,7 +228,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Area',
     subtitle: 'Forms and requests for parents and guardians',
     footer: FOOTER.parents,
-    columns: 2,
     cards: [
       { icon: I.link, name: 'Medicine Consent Form', desc: 'Authorise medicine administration during boarding', href: '/form-richiesta' },
       { icon: I.diet, name: 'Special Diet Request', desc: 'Request a special or medical menu for a student', href: '/special-diet-request' },
@@ -246,7 +241,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Assignment',
     subtitle: 'Manage room assignments, responses and photos',
     footer: FOOTER.boarding,
-    columns: 2,
     cards: [
       { icon: I.house, name: 'Assign a Room', desc: 'Fill in the room assignment form', href: '/room-assignment' },
       { icon: I.file, name: 'Form Responses', desc: 'View room assignment submissions', href: '#' },
@@ -262,7 +256,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Medicines',
     subtitle: 'Submit medicine requests or browse the consent registry',
     footer: FOOTER.boarding,
-    columns: 2,
     cards: [
       { icon: I.userCheck, name: 'Consent Registry', desc: 'Access the consent registry', href: '#' },
     ],
@@ -275,7 +268,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'risposte',
     subtitle: 'Data sheets and history',
     footer: FOOTER.it,
-    columns: 2,
     cards: [
       { icon: I.grid, name: 'Registro Check-in Student', desc: 'Student check-in records', href: '#' },
       { icon: I.grid, name: 'Registro Check-out Student', desc: 'Student check-out records', href: '#' },
@@ -291,7 +283,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Records',
     subtitle: 'Onboarding and offboarding registries',
     footer: FOOTER.hr,
-    columns: 2,
     cards: [
       { icon: I.grid, name: 'Registro Onboarding', desc: 'Onboarding spreadsheet', href: HR_ONBOARDING_XLSX, external: true },
       { icon: I.grid, name: 'Registro Offboarding', desc: 'Offboarding spreadsheet', href: HR_OFFBOARDING_XLSX, external: true },
@@ -305,7 +296,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Management',
     subtitle: 'Onboarding and offboarding of employees',
     footer: FOOTER.hr,
-    columns: 2,
     cards: [
       { icon: I.userPlus, name: 'Onboarding', desc: 'New employee setup request', href: '/onboarding' },
       { icon: I.userMinus, name: 'Offboarding', desc: 'Departing employee process', href: '/employee-management' },
@@ -319,7 +309,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Check-in / Check-out',
     subtitle: 'Device delivery and return — staff',
     footer: FOOTER.it,
-    columns: 2,
     cards: [
       { icon: I.checkin, name: 'Check-in', desc: 'Device delivered to employee', href: '/modulo-employee?op=checkin' },
       { icon: I.checkout, name: 'Check-out', desc: 'Device returned by employee', href: '/modulo-employee?op=checkout' },
@@ -333,7 +322,6 @@ export const HUBS: Record<string, HubConfig> = {
     titleSpan: 'Check-in / Check-out',
     subtitle: 'Device delivery and return — students',
     footer: FOOTER.it,
-    columns: 2,
     cards: [
       { icon: I.checkin, name: 'Check-in', desc: 'Device delivered to student', href: '/modulo-student?op=checkin' },
       { icon: I.checkout, name: 'Check-out', desc: 'Device returned by student', href: '/modulo-student?op=checkout' },

@@ -89,10 +89,9 @@ const ALL_CARDS: DashCard[] = [
     href: '/parents-hub',
     icon: (
       <svg viewBox="0 0 24 24">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        <circle cx="8" cy="7.5" r="3.2" />
+        <path d="M2.5 20v-1.4A4.6 4.6 0 0 1 7.1 14h1.8a4.6 4.6 0 0 1 4.1 2.5" />
+        <path d="M18 11.4c1.1-1.3 3.4-.6 3.4 1.1 0 1.6-2 2.9-3.4 4.3-1.4-1.4-3.4-2.7-3.4-4.3 0-1.7 2.3-2.4 3.4-1.1z" />
       </svg>
     ),
     name: 'Parents',
@@ -115,7 +114,6 @@ interface DashUser {
 export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<DashUser | null>(null);
-  const [isNarrow, setIsNarrow] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -146,26 +144,10 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 620px)');
-    const update = () => setIsNarrow(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
-
   const visible = useMemo(
     () => (user ? ALL_CARDS.filter((c) => c.roles.some((r) => user.roles.includes(r))) : []),
     [user],
   );
-
-  const gridTemplateColumns = useMemo(() => {
-    if (isNarrow) return '1fr';
-    if (visible.length === 1) return 'minmax(0, 340px)';
-    if (visible.length === 2) return 'repeat(2,1fr)';
-    if (visible.length === 3) return 'repeat(3,1fr)';
-    return 'repeat(2,1fr)';
-  }, [visible.length, isNarrow]);
 
   async function doLogout() {
     try {
@@ -214,9 +196,9 @@ export default function HomePage() {
               Sign out
             </button>
           </div>
-          <div className="cards" style={{ justifyContent: 'center', gridTemplateColumns }}>
+          <div className="cards">
             {visible.length === 0 ? (
-              <p style={{ color: '#6E6468', fontSize: 14, textAlign: 'center', padding: '2rem', gridColumn: '1/-1' }}>
+              <p style={{ color: '#6E6468', fontSize: 14, textAlign: 'center', padding: '2rem' }}>
                 No sections available for your role.
               </p>
             ) : (

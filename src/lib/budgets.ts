@@ -1,13 +1,14 @@
 /* ═══════════════════════════════════════════════════════════════════
-   IT Budget Management — budget lines ("commesse") + expense ledger.
+   IT Budget Management — schools, budget lines ("commesse") and the
+   expense ledger.
 
-   The four budget lines and their allocations for the 26/27 financial
-   year are declared here: to change an allocation (or add a line) edit
-   BUDGET_LINES below — nothing else needs to change. `code` is what is
-   stored in the database, so never rename an existing code.
+   Each school has its own allocations for the 26/27 financial year.
+   To change an allocation edit SCHOOLS below; to add a line add it to
+   LINE_META first. `code` values (both school and line) are stored in
+   the database, so never rename an existing one.
 
    Expenses live in the Supabase table `it_budget_expenses`
-   (see supabase/migrations/0001_it_budget_expenses.sql).
+   (see supabase/migrations/).
    ═══════════════════════════════════════════════════════════════════ */
 import { getSupabase } from './supabase';
 
@@ -23,45 +24,83 @@ export interface BudgetLine {
   accentSoft: string;
 }
 
-export const BUDGET_LINES: BudgetLine[] = [
-  {
-    code: 'indirect',
+/* The lines are the same everywhere — only the allocation changes per
+   school — so their presentation is declared once here. */
+const LINE_META = {
+  indirect: {
     name: 'IT Indirect & Infrastructure 26/27',
-    allocated: 55400,
     caption: 'Infrastruttura, servizi e costi indiretti',
     accent: '#8B1A2B',
     accentSoft: '#F9EFF0',
   },
-  {
-    code: 'hardware',
+  hardware: {
     name: 'IT Hardware & Consumables 26/27',
-    allocated: 28500,
     caption: 'Hardware, ricambi e materiali di consumo',
     accent: '#C9A227',
     accentSoft: '#FBF4DF',
   },
-  {
-    code: 'capex',
+  capex: {
     name: 'CAPEX IT 26/27',
-    allocated: 182600,
     caption: 'Investimenti e progetti capitalizzati',
     accent: '#2F6E5B',
     accentSoft: '#E7F2EE',
   },
+} as const;
+
+export type LineCode = keyof typeof LINE_META;
+
+const line = (code: LineCode, allocated: number): BudgetLine => ({ code, allocated, ...LINE_META[code] });
+
+export type SchoolStatus = 'active' | 'wip';
+
+export interface School {
+  code: string;
+  /** Short label used in headings and pickers. */
+  name: string;
+  /** Legal / extended name shown as the caption. */
+  fullName: string;
+  location: string;
+  status: SchoolStatus;
+  lines: BudgetLine[];
+}
+
+export const SCHOOLS: School[] = [
   {
-    code: 'opex',
-    name: 'IT Opex 26/27',
-    allocated: 180326,
-    caption: 'Costi operativi ricorrenti',
-    accent: '#3C5A8A',
-    accentSoft: '#EAF0F8',
+    code: 'venezia',
+    name: 'Venezia',
+    fullName: 'H-International School Venezia',
+    location: 'Roncade (TV)',
+    status: 'active',
+    lines: [line('indirect', 55400), line('hardware', 28500), line('capex', 182600)],
+  },
+  {
+    code: 'vicenza',
+    name: 'Vicenza',
+    fullName: 'H-International School Vicenza',
+    location: 'Vicenza (VI)',
+    status: 'active',
+    lines: [line('indirect', 37250), line('hardware', 21000), line('capex', 69700)],
+  },
+  {
+    code: 'rosa',
+    name: 'Rosà',
+    fullName: 'H-International School Rosà',
+    location: 'Rosà (VI)',
+    status: 'wip',
+    lines: [],
   },
 ];
 
-export const TOTAL_ALLOCATED = BUDGET_LINES.reduce((s, b) => s + b.allocated, 0);
+export function schoolByCode(code: string): School | undefined {
+  return SCHOOLS.find((s) => s.code === code);
+}
 
-export function lineByCode(code: string): BudgetLine | undefined {
-  return BUDGET_LINES.find((b) => b.code === code);
+export function totalAllocated(school: School): number {
+  return school.lines.reduce((s, b) => s + b.allocated, 0);
+}
+
+export function lineByCode(school: School, code: string): BudgetLine | undefined {
+  return school.lines.find((b) => b.code === code);
 }
 
 // ─── Formatting (it-IT: 1.234,56 €) ──────────────────────────
@@ -103,6 +142,7 @@ export function todayISO(): string {
 // ─── Expense ledger (Supabase) ───────────────────────────────
 export interface Expense {
   id: string;
+  school: string;
   budget_code: string;
   description: string;
   supplier: string | null;
@@ -114,6 +154,7 @@ export interface Expense {
 }
 
 export interface NewExpense {
+  school: string;
   budget_code: string;
   description: string;
   supplier?: string;
@@ -124,18 +165,19 @@ export interface NewExpense {
 }
 
 const TABLE = 'it_budget_expenses';
-const COLS = 'id,budget_code,description,supplier,amount,spent_on,notes,created_by_name,created_at';
+const COLS = 'id,school,budget_code,description,supplier,amount,spent_on,notes,created_by_name,created_at';
 
 // PostgREST can hand numeric back as a string depending on the driver — coerce.
 function normalise(row: Record<string, unknown>): Expense {
   return { ...(row as unknown as Expense), amount: Number(row.amount) || 0 };
 }
 
-export async function listExpenses(): Promise<Expense[]> {
+export async function listExpenses(school: string): Promise<Expense[]> {
   const sb = getSupabase();
   const { data, error } = await sb
     .from(TABLE)
     .select(COLS)
+    .eq('school', school)
     .order('spent_on', { ascending: false })
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -147,6 +189,7 @@ export async function addExpense(input: NewExpense): Promise<Expense> {
   const { data, error } = await sb
     .from(TABLE)
     .insert({
+      school: input.school,
       budget_code: input.budget_code,
       description: input.description,
       supplier: input.supplier || null,
@@ -167,10 +210,10 @@ export async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Sum of expenses per budget code. */
-export function totalsByCode(expenses: Expense[]): Record<string, number> {
+/** Sum of expenses per budget code, for the given school's lines. */
+export function totalsByCode(school: School, expenses: Expense[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const b of BUDGET_LINES) out[b.code] = 0;
+  for (const b of school.lines) out[b.code] = 0;
   for (const e of expenses) out[e.budget_code] = (out[e.budget_code] || 0) + e.amount;
   return out;
 }

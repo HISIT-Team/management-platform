@@ -30,6 +30,7 @@
 }
 
 .budget-page .shell { max-width: 1120px; margin: 0 auto; }
+.budget-page .shell--narrow { max-width: 620px; }
 
 /* ── Page head ───────────────────────────────────────────── */
 .budget-page .b-head {
@@ -37,6 +38,7 @@
   gap: 1.25rem; flex-wrap: wrap; margin-bottom: 1.4rem;
   animation: rise .45s both;
 }
+.budget-page .b-head--stacked { display: block; margin-bottom: 1.9rem; }
 .budget-page .b-head-left { display: flex; align-items: center; gap: 14px; }
 .budget-page .b-head .logo {
   width: 48px; height: 48px; border-radius: 15px; flex-shrink: 0;
@@ -355,6 +357,65 @@
 
 .budget-page .b-footer { margin-top: 2.75rem; text-align: center; font-size: 12px; color: var(--b-faint); letter-spacing: .04em; }
 .budget-page .b-footer span { display: block; margin-top: .3rem; font-size: 11px; opacity: .85; }
+
+/* ── School picker ───────────────────────────────────────── */
+.budget-page .schools { display: flex; flex-direction: column; gap: .85rem; }
+
+.budget-page .school-card {
+  display: grid; grid-template-columns: 54px 1fr 34px; align-items: center; gap: 1.1rem;
+  padding: 1.15rem 1.3rem; text-decoration: none; color: inherit;
+  background: var(--b-surface); border: 1px solid var(--b-line);
+  border-radius: var(--b-radius); box-shadow: var(--b-shadow);
+  position: relative; overflow: hidden;
+  transition: transform .25s cubic-bezier(.22, .9, .3, 1), box-shadow .25s, border-color .25s;
+  animation: rise .5s cubic-bezier(.22, .9, .3, 1) both;
+}
+.budget-page .school-card::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 3px;
+  background: linear-gradient(180deg, var(--brand), var(--gold));
+  transform: scaleY(0); transform-origin: top;
+  transition: transform .3s cubic-bezier(.22, .9, .3, 1);
+}
+.budget-page .school-card:hover { transform: translateY(-3px); box-shadow: var(--b-shadow-lg); border-color: rgba(139, 26, 43, .16); }
+.budget-page .school-card:hover::before { transform: scaleY(1); }
+
+.budget-page .school-chip {
+  width: 54px; height: 54px; border-radius: 16px;
+  background: linear-gradient(140deg, var(--brand-mid) -10%, var(--brand) 50%, var(--brand-deep) 120%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .25), 0 8px 18px -8px rgba(139, 26, 43, .5);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 17px; font-weight: 800; letter-spacing: .02em;
+  transition: transform .25s cubic-bezier(.22, .9, .3, 1);
+}
+.budget-page .school-card:hover .school-chip { transform: scale(1.05) rotate(-2deg); }
+
+.budget-page .school-name { font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.budget-page .school-sub { font-size: 12.5px; color: var(--b-muted); margin-top: 2px; }
+.budget-page .school-meta { font-size: 12.5px; color: var(--b-faint); margin-top: 7px; }
+.budget-page .school-meta b { color: var(--b-ink); font-weight: 700; }
+
+.budget-page .school-go {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--brand-light);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, transform .25s cubic-bezier(.22, .9, .3, 1);
+}
+.budget-page .school-go svg { width: 15px; height: 15px; stroke: var(--brand); fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: stroke .2s; }
+.budget-page .school-card:hover .school-go { background: var(--brand); transform: translateX(3px); }
+.budget-page .school-card:hover .school-go svg { stroke: #fff; }
+
+.budget-page .school-card.is-disabled { cursor: not-allowed; box-shadow: none; background: var(--b-soft); }
+.budget-page .school-card.is-disabled:hover { transform: none; box-shadow: none; border-color: var(--b-line); }
+.budget-page .school-card.is-disabled:hover::before { transform: scaleY(0); }
+.budget-page .school-card.is-disabled .school-chip { background: #E4DCDD; color: var(--b-faint); box-shadow: none; }
+.budget-page .school-card.is-disabled:hover .school-chip { transform: none; }
+.budget-page .school-card.is-disabled .school-name { color: var(--b-muted); }
+.budget-page .school-card.is-disabled .school-go { background: transparent; }
+.budget-page .school-card.is-disabled .school-go svg { stroke: var(--b-faint); stroke-width: 2; }
+.budget-page .school-card.is-disabled:hover .school-go { background: transparent; transform: none; }
+
+/* A ledger row whose budget code no longer belongs to the school's lines
+   (e.g. a retired commessa) — shown so it can still be reviewed/removed. */
+.budget-page .tag--orphan { background: var(--b-soft); color: var(--b-muted); border: 1px dashed #E4DCDD; }
 
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 860px) {
