@@ -116,6 +116,14 @@ const IconFolders = (
     <path d="M7 6V5a2 2 0 0 1 2-2h2.2l2 2H17" />
   </svg>
 );
+const IconNote = (
+  <svg viewBox="0 0 24 24">
+    <path d="M5 4a1.6 1.6 0 0 1 1.6-1.6H14l5 5v11.2A1.6 1.6 0 0 1 17.4 20H6.6A1.6 1.6 0 0 1 5 18.4z" />
+    <polyline points="14 2.5 14 7.5 19 7.5" />
+    <line x1="8.5" y1="12.5" x2="15" y2="12.5" />
+    <line x1="8.5" y1="16" x2="13" y2="16" />
+  </svg>
+);
 const IconTask = (
   <svg viewBox="0 0 24 24">
     <rect x="4" y="3" width="16" height="18" rx="2.5" />
@@ -224,10 +232,14 @@ function DueChip({ task }: { task: Task }) {
   );
 }
 
+/** Quante sotto-task si vedono in card prima di riassumere le altre. */
+const SUBS_ON_CARD = 5;
+
 interface TaskCardProps {
   task: Task;
   group?: TaskGroup | null;
   member?: TaskMember | null;
+  members: Map<string, TaskMember>;
   subs: Subtask[];
   dragging: boolean;
   onDragStart: (ev: React.DragEvent, task: Task) => void;
@@ -235,11 +247,27 @@ interface TaskCardProps {
   onDragOver: (ev: React.DragEvent) => void;
   onOpen: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onToggleSub: (sub: Subtask) => void;
 }
 
-function TaskCard({ task, group, member, subs, dragging, onDragStart, onDragEnd, onDragOver, onOpen, onDelete }: TaskCardProps) {
+function TaskCard({
+  task,
+  group,
+  member,
+  members,
+  subs,
+  dragging,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onOpen,
+  onDelete,
+  onToggleSub,
+}: TaskCardProps) {
   const pr = priorityMeta(task.priority);
   const doneSubs = subs.filter((s) => s.status === 'completed').length;
+  const shown = subs.slice(0, SUBS_ON_CARD);
+  const hidden = subs.length - shown.length;
   return (
     <div
       className={'tcard' + (dragging ? ' dragging' : '') + (task.status === 'completed' ? ' done' : '')}
@@ -279,6 +307,13 @@ function TaskCard({ task, group, member, subs, dragging, onDragStart, onDragEnd,
       <div className="tcard-title">{task.title}</div>
       {task.description ? <div className="tcard-desc">{task.description}</div> : null}
 
+      {task.notes ? (
+        <div className="note-block" title={task.notes}>
+          {IconNote}
+          <span>{task.notes}</span>
+        </div>
+      ) : null}
+
       {group || task.due_date || task.start_date ? (
         <div className="tcard-tags">
           {group ? (
@@ -315,6 +350,43 @@ function TaskCard({ task, group, member, subs, dragging, onDragStart, onDragEnd,
           </span>
         ) : null}
       </div>
+
+      {/* Le sotto-task si leggono e si spuntano senza aprire la task. */}
+      {subs.length ? (
+        <div className="tcard-subs">
+          {shown.map((s) => {
+            const done = s.status === 'completed';
+            const who = s.assignee_id ? members.get(s.assignee_id) : null;
+            return (
+              <div className={'tcard-sub' + (done ? ' done' : '')} key={s.id}>
+                <button
+                  type="button"
+                  className={'sub-check tiny' + (done ? ' on' : '')}
+                  title={done ? 'Riapri la sotto-task' : 'Segna come completata'}
+                  aria-label={(done ? 'Riapri' : 'Completa') + ' la sotto-task ' + s.title}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    onToggleSub(s);
+                  }}
+                >
+                  {IconCheck}
+                </button>
+                <span className="tcard-sub-title">{s.title}</span>
+                {who ? (
+                  <span className="avatar tiny" style={vars(who.color, who.color)} title={who.full_name}>
+                    {initials(who.full_name)}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+          {hidden > 0 ? (
+            <div className="tcard-more">
+              +{hidden} {hidden === 1 ? 'altra sotto-task' : 'altre sotto-task'}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -350,6 +422,7 @@ export default function TaskManagerClient() {
   // Form task
   const [fTitle, setFTitle] = useState('');
   const [fDesc, setFDesc] = useState('');
+  const [fNotes, setFNotes] = useState('');
   const [fGroupId, setFGroupId] = useState<string>('');
   const [fAssigneeId, setFAssigneeId] = useState<string>('');
   const [fTaskStatus, setFTaskStatus] = useState<TaskStatus>('open');
@@ -501,6 +574,7 @@ export default function TaskManagerClient() {
     (status: TaskStatus = 'open') => {
       setFTitle('');
       setFDesc('');
+      setFNotes('');
       setFGroupId(fGroup !== 'all' && fGroup !== 'none' ? fGroup : '');
       setFAssigneeId(fAssignee !== 'all' && fAssignee !== 'none' ? fAssignee : '');
       setFTaskStatus(status);
@@ -518,6 +592,7 @@ export default function TaskManagerClient() {
   const openEdit = useCallback((t: Task) => {
     setFTitle(t.title);
     setFDesc(t.description || '');
+    setFNotes(t.notes || '');
     setFGroupId(t.group_id || '');
     setFAssigneeId(t.assignee_id || '');
     setFTaskStatus(t.status);
@@ -547,6 +622,7 @@ export default function TaskManagerClient() {
         const row = await updateTask(modal.id, {
           title,
           description: fDesc.trim() || null,
+          notes: fNotes.trim() || null,
           group_id: fGroupId || null,
           assignee_id: fAssigneeId || null,
           status: fTaskStatus,
@@ -562,6 +638,7 @@ export default function TaskManagerClient() {
         const row = await createTask({
           title,
           description: fDesc.trim() || null,
+          notes: fNotes.trim() || null,
           group_id: fGroupId || null,
           assignee_id: fAssigneeId || null,
           status: fTaskStatus,
@@ -646,6 +723,18 @@ export default function TaskManagerClient() {
       showToast('Errore: ' + (e as Error).message, true);
     }
   }
+
+  /** Spunta/riapre una sotto-task dalla card, senza aprire la task. */
+  const toggleSubtask = useCallback((sub: Subtask) => {
+    const next: TaskStatus = sub.status === 'completed' ? 'open' : 'completed';
+    setSubtasks((prev) => prev.map((s) => (s.id === sub.id ? { ...s, status: next } : s)));
+    updateSubtask(sub.id, { status: next })
+      .then((row) => setSubtasks((prev) => prev.map((s) => (s.id === row.id ? row : s))))
+      .catch((e: Error) => {
+        setSubtasks((prev) => prev.map((s) => (s.id === sub.id ? sub : s)));
+        showToast('Errore: ' + e.message, true);
+      });
+  }, [showToast]);
 
   async function removeSubtask(sub: Subtask) {
     const before = subtasks;
@@ -976,6 +1065,7 @@ export default function TaskManagerClient() {
                             task={t}
                             group={t.group_id ? groupById.get(t.group_id) : null}
                             member={t.assignee_id ? memberById.get(t.assignee_id) : null}
+                            members={memberById}
                             subs={subsByTask.get(t.id) || EMPTY_SUBS}
                             dragging={draggingId === t.id}
                             onDragStart={onCardDragStart}
@@ -983,6 +1073,7 @@ export default function TaskManagerClient() {
                             onDragOver={(ev) => onCardDragOver(ev, s.value, i)}
                             onOpen={openEdit}
                             onDelete={setToDelete}
+                            onToggleSub={toggleSubtask}
                           />
                         </React.Fragment>
                       ))}
@@ -1032,14 +1123,15 @@ export default function TaskManagerClient() {
                         const subs = subsByTask.get(t.id) || [];
                         const doneSubs = subs.filter((s) => s.status === 'completed').length;
                         return (
-                          <tr key={t.id} onClick={() => openEdit(t)}>
+                          <React.Fragment key={t.id}>
+                          <tr className={'trow' + (subs.length ? ' has-subs' : '')} onClick={() => openEdit(t)}>
                             <td>
                               <div className="t-title">{t.title}</div>
-                              {subs.length || t.description ? (
-                                <div className="t-sub">
-                                  {subs.length ? `${doneSubs}/${subs.length} sotto-task` : ''}
-                                  {subs.length && t.description ? ' · ' : ''}
-                                  {t.description ? t.description.slice(0, 70) + (t.description.length > 70 ? '…' : '') : ''}
+                              {t.description ? <div className="t-desc">{t.description}</div> : null}
+                              {t.notes ? (
+                                <div className="note-block" title={t.notes}>
+                                  {IconNote}
+                                  <span>{t.notes}</span>
                                 </div>
                               ) : null}
                             </td>
@@ -1106,6 +1198,48 @@ export default function TaskManagerClient() {
                               </button>
                             </td>
                           </tr>
+                          {subs.length ? (
+                            <tr className="row-subs" onClick={() => openEdit(t)}>
+                              <td colSpan={9}>
+                                <div className="row-subs-wrap">
+                                  <span className="row-subs-lbl">
+                                    {doneSubs}/{subs.length} sotto-task
+                                  </span>
+                                  {subs.map((s) => {
+                                    const done = s.status === 'completed';
+                                    const who = s.assignee_id ? memberById.get(s.assignee_id) : null;
+                                    return (
+                                      <span className={'row-sub' + (done ? ' done' : '')} key={s.id}>
+                                        <button
+                                          type="button"
+                                          className={'sub-check tiny' + (done ? ' on' : '')}
+                                          title={done ? 'Riapri la sotto-task' : 'Segna come completata'}
+                                          aria-label={(done ? 'Riapri' : 'Completa') + ' la sotto-task ' + s.title}
+                                          onClick={(ev) => {
+                                            ev.stopPropagation();
+                                            toggleSubtask(s);
+                                          }}
+                                        >
+                                          {IconCheck}
+                                        </button>
+                                        {s.title}
+                                        {who ? (
+                                          <span
+                                            className="avatar tiny"
+                                            style={vars(who.color, who.color)}
+                                            title={who.full_name}
+                                          >
+                                            {initials(who.full_name)}
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -1172,6 +1306,18 @@ export default function TaskManagerClient() {
                     value={fDesc}
                     onChange={(ev) => setFDesc(ev.target.value)}
                   />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="tm-notes">Note</label>
+                  <textarea
+                    id="tm-notes"
+                    className="notes-input"
+                    placeholder="Appunti, aggiornamenti, cose da ricordare…"
+                    value={fNotes}
+                    onChange={(ev) => setFNotes(ev.target.value)}
+                  />
+                  <p className="hint">Se c&apos;è una nota, la card in board e la riga in lista la mostrano.</p>
                 </div>
 
                 <div className="field">

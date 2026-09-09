@@ -38,6 +38,8 @@ export interface Task {
   id: string;
   title: string;
   description: string | null;
+  /** Annotazioni libere, separate dalla descrizione: la card le segnala. */
+  notes: string | null;
   group_id: string | null;
   assignee_id: string | null;
   status: TaskStatus;
@@ -167,12 +169,20 @@ export function parseHours(raw: string): number | null {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** "Alessandro Manzini" → "AM" */
+/**
+ * "Alessandro Manzini" → "AM", "Alberto Dalle Carbonare" → "ADC".
+ * Prende l'iniziale di ogni parola (max 3): con i cognomi composti
+ * saltare quella di mezzo darebbe una sigla sbagliata ("AC").
+ */
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return parts
+    .slice(0, 3)
+    .map((p) => p[0])
+    .join('')
+    .toUpperCase();
 }
 
 /* ── Ordinamento kanban ────────────────────────────────────────── */
@@ -201,7 +211,7 @@ const SUBTASKS = 'it_subtasks';
 const GROUP_COLS = 'id,name,description,color,sort_order,active';
 const MEMBER_COLS = 'id,full_name,email,color,sort_order,active';
 const TASK_COLS =
-  'id,title,description,group_id,assignee_id,status,priority,start_date,due_date,estimated_hours,position,completed_at,created_by_name,created_at,updated_at';
+  'id,title,description,notes,group_id,assignee_id,status,priority,start_date,due_date,estimated_hours,position,completed_at,created_by_name,created_at,updated_at';
 const SUBTASK_COLS = 'id,task_id,title,description,assignee_id,status,position,created_at,updated_at';
 
 // PostgREST può restituire numeric come stringa a seconda del driver.
@@ -291,6 +301,7 @@ export async function createTask(input: NewTask): Promise<Task> {
     .insert({
       title: input.title,
       description: input.description || null,
+      notes: input.notes || null,
       group_id: input.group_id || null,
       assignee_id: input.assignee_id || null,
       status: input.status || 'open',
