@@ -145,6 +145,13 @@ const I = {
       <circle cx="12" cy="13" r="4" />
     </svg>
   ),
+  tasks: (
+    <svg viewBox="0 0 24 24">
+      <rect x="4" y="3" width="16" height="18" rx="2.5" />
+      <polyline points="8.5 9 10.5 11 14 7.5" />
+      <line x1="8.5" y1="15" x2="15.5" y2="15" />
+    </svg>
+  ),
   userCheck: (
     <svg viewBox="0 0 24 24">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -192,6 +199,7 @@ export const HUBS: Record<string, HubConfig> = {
       { icon: I.briefcase, name: 'Check-in/Check-out Employee', desc: 'Device delivery and return — staff', href: '/employee-checkinout-hub' },
       { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub' },
       { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — Venezia, Vicenza', href: '/budget-management' },
+      { icon: I.tasks, name: 'Task Manager', desc: 'Attività del team IT, gruppi di progetto e sotto-task', href: '/task-manager' },
     ],
   },
 
