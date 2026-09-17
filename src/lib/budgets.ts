@@ -86,8 +86,8 @@ export const SCHOOLS: School[] = [
     name: 'Rosà',
     fullName: 'H-International School Rosà',
     location: 'Rosà (VI)',
-    status: 'wip',
-    lines: [],
+    status: 'active',
+    lines: [line('indirect', 28500), line('hardware', 14100), line('capex', 45495)],
   },
 ];
 
