@@ -2,14 +2,13 @@
    Student device log — writes one row to `student_device_log`
    (see supabase/migrations/0005_student_device_log.sql) for every
    Student Check-in / Check-out form submitted.
+   The student is identified by email only — no names are stored.
    ═══════════════════════════════════════════════════════════════════ */
 import { getSupabase } from './supabase';
 
 export interface StudentDeviceLogEntry {
   operation: 'Check-in' | 'Check-out';
   student_email: string;
-  first_name: string;
-  last_name: string;
   school: string;
   macbook_id: string | null;
   ipad_id: string | null;

@@ -280,8 +280,6 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
           await logStudentDevice({
             operation: op,
             student_email: email.trim(),
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
             school: org,
             macbook_id: assetId('MacBook'),
             ipad_id: assetId('iPad'),

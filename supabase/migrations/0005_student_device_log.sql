@@ -7,6 +7,9 @@
 -- solito 3–10 KB) in formato data URL: si apre incollandola nella barra
 -- del browser. Il limite di 60 KB protegge la quota del piano free.
 --
+-- Per scelta, NESSUN nome/cognome dello studente: lo identifica solo
+-- l'email.
+--
 -- Solo IT/admin possono leggere e inserire. Nessuna policy di update o
 -- delete: le righe sono un registro; correzioni dal Table Editor.
 --
@@ -36,8 +39,6 @@ create table if not exists public.student_device_log (
   created_at     timestamptz not null default now(),
   operation      text        not null check (operation in ('Check-in', 'Check-out')),
   student_email  text        not null check (length(btrim(student_email)) > 0),
-  first_name     text,
-  last_name      text,
   school         text,
   macbook_id     text,
   ipad_id        text,
@@ -45,6 +46,10 @@ create table if not exists public.student_device_log (
   signature      text        check (signature is null or (signature like 'data:image/%' and length(signature) <= 60000)),
   created_by     uuid        default auth.uid() references auth.users (id) on delete set null
 );
+
+-- Se la tabella era già stata creata con nome/cognome, li rimuove.
+alter table public.student_device_log drop column if exists first_name;
+alter table public.student_device_log drop column if exists last_name;
 
 create index if not exists student_device_log_email_idx   on public.student_device_log (lower(student_email));
 create index if not exists student_device_log_created_idx on public.student_device_log (created_at desc);
