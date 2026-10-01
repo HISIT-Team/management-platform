@@ -9,6 +9,7 @@ import QrScanner from '@/components/QrScanner';
 import { useToast } from '@/components/useToast';
 import { compressImage } from '@/lib/image';
 import { submitForm } from '@/lib/auth';
+import { compactSignature, logStudentDevice } from '@/lib/deviceLog';
 
 export interface DeviceDef {
   name: string;
@@ -269,7 +270,31 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
               employee: { first_name: firstName.trim(), last_name: lastName.trim(), email: email.trim(), company: org },
             };
       await submitForm(config.formTypeByOp[op], payload);
-      showToast('Form submitted ✓');
+
+      // Student forms: also keep a row in `student_device_log`. The form is
+      // already sent at this point, so a logging failure only warns.
+      let logFailed = false;
+      if (config.kind === 'student') {
+        const assetId = (dev: string) => (selected.includes(dev) ? getState(dev).assetId.trim() || null : null);
+        try {
+          await logStudentDevice({
+            operation: op,
+            student_email: email.trim(),
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            school: org,
+            macbook_id: assetId('MacBook'),
+            ipad_id: assetId('iPad'),
+            signed_by: signer,
+            signature: await compactSignature(base.signature),
+          });
+        } catch (e) {
+          logFailed = true;
+          console.error('student_device_log insert failed', e);
+        }
+      }
+      if (logFailed) showToast('Form submitted ✓ — but saving to the device log failed', true);
+      else showToast('Form submitted ✓');
       resetForm();
     } catch (e) {
       showToast('Submission failed: ' + (e as Error).message, true);
