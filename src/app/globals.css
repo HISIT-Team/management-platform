@@ -303,6 +303,11 @@ body::before {
 /* ── Footer ── */
 .footer { margin-top: 4rem; font-size: 12px; color: var(--faint); text-align: center; letter-spacing: .04em; }
 .footer-address { display: block; margin-top: .3rem; font-size: 11px; opacity: .85; }
+.footer-privacy { display: inline-block; margin-top: .5rem; font-size: 11.5px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+.footer-privacy:hover { color: var(--brand); }
+.privacy-check { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; color: var(--muted); line-height: 1.45; margin: .2rem 0 1rem; cursor: pointer; }
+.privacy-check input { margin-top: 3px; accent-color: var(--brand); width: 16px; height: 16px; flex-shrink: 0; }
+.privacy-check a { color: var(--brand); font-weight: 600; }
 
 /* ── Animations ── */
 @keyframes rise {

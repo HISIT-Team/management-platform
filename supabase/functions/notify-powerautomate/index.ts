@@ -38,6 +38,62 @@ function json(body: unknown, status: number, cors: Record<string, string>) {
   return new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 }
 
+// ── Whitelist of the fields the flow receives (anything else is dropped) ──
+const FORM_TYPES = ['student_checkout', 'student_checkin', 'employee_checkout', 'employee_checkin'];
+const STR_FIELDS: Record<string, number> = {
+  timestamp: 40, first_name: 120, last_name: 120, email: 254, school_or_company: 120,
+  parent_email_1: 254, parent_email_2: 254, macbook_id: 120, ipad_id: 120, accessories_id: 120,
+  signed_by: 40, signature_mime: 40,
+};
+const MAX_SIGNATURE = 400_000; // base64 chars (~300 KB)
+const MAX_PHOTOS = 40;
+const MAX_PHOTO = 2_000_000; // base64 chars (~1.5 MB each)
+
+const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+
+function sanitize(b: Record<string, unknown>): Record<string, unknown> | null {
+  if (typeof b !== 'object' || b === null) return null;
+  const formType = String(b.form_type ?? '');
+  const operation = String(b.operation ?? '');
+  if (!FORM_TYPES.includes(formType) || !['Check-in', 'Check-out'].includes(operation)) return null;
+
+  const out: Record<string, unknown> = {
+    form_type: formType,
+    operation,
+    operation_label: operation === 'Check-out' ? 'Consegna' : 'Restituzione',
+    type: formType.startsWith('student') ? 'student' : 'employee',
+  };
+  for (const [k, max] of Object.entries(STR_FIELDS)) out[k] = str(b[k], max);
+
+  out.devices = Array.isArray(b.devices) ? b.devices.filter((d) => typeof d === 'string').slice(0, 20).map((d) => d.slice(0, 40)) : [];
+  const dd = typeof b.device_details === 'object' && b.device_details !== null && !Array.isArray(b.device_details)
+    ? (b.device_details as Record<string, unknown>) : {};
+  out.device_details = Object.fromEntries(
+    Object.entries(dd).slice(0, 10).map(([k, v]) => {
+      const d = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>;
+      return [k.slice(0, 40), { asset_id: str(d.asset_id, 120), has_damage: d.has_damage === true }];
+    }),
+  );
+
+  const sigB64 = str(b.signature_base64, MAX_SIGNATURE);
+  out.signature_base64 = /^[A-Za-z0-9+/=]*$/.test(sigB64) ? sigB64 : '';
+  out.signature_mime = /^image\/(jpeg|png|webp)$/.test(String(out.signature_mime)) ? out.signature_mime : 'image/jpeg';
+  out.signature_data_url = out.signature_base64 ? `data:${out.signature_mime};base64,${out.signature_base64}` : '';
+
+  out.photos = (Array.isArray(b.photos) ? b.photos : [])
+    .slice(0, MAX_PHOTOS)
+    .filter((p): p is Record<string, unknown> => typeof p === 'object' && p !== null)
+    .map((p) => ({
+      name: str(p.name, 80).replace(/[^A-Za-z0-9_.-]/g, '_') || 'photo.jpg',
+      category: str(p.category, 20),
+      device: str(p.device, 40),
+      mime: /^image\/(jpeg|png|webp)$/.test(String(p.mime)) ? p.mime : 'image/jpeg',
+      base64: /^[A-Za-z0-9+/=]*$/.test(String(p.base64 ?? '')) ? str(p.base64, MAX_PHOTO) : '',
+    }))
+    .filter((p) => p.base64);
+  return out;
+}
+
 Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -71,16 +127,13 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'Invalid JSON' }, 400, cors);
   }
-  if (typeof body !== 'object' || body === null || typeof body.form_type !== 'string' || typeof body.operation !== 'string') {
-    return json({ error: 'Missing form_type / operation' }, 400, cors);
-  }
-
-  // Server-side facts the browser cannot fake.
-  const outgoing = {
-    ...body,
+  const outgoing = sanitize(body);
+  if (!outgoing) return json({ error: 'Invalid form data' }, 400, cors);
+  Object.assign(outgoing, {
+    // Server-side facts the browser cannot fake.
     submitted_by: { id: userData.user.id, email: userData.user.email ?? null, role },
     received_at: new Date().toISOString(),
-  };
+  });
 
   // ── Forward to Power Automate ──────────────────────────────────
   try {

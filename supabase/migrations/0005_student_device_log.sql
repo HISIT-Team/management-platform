@@ -30,7 +30,7 @@ as $$
     select 1
     from public.profiles p
     where p.id = auth.uid()
-      and lower(coalesce(p.role, '')) in ('it', 'admin')
+      and lower(coalesce(p.role, '')) in ('it', 'admin', 'superadmin')
   );
 $$;
 

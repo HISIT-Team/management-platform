@@ -51,3 +51,30 @@ export async function deleteUser(id: string): Promise<void> {
   const { error } = await getSupabase().rpc('admin_delete_user', { p_id: id });
   if (error) throw new Error(error.message);
 }
+
+/* ── Registro attività (audit_log, migrazione 0014) ─────────────────── */
+export interface AuditEntry {
+  id: number;
+  created_at: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  target_label: string | null;
+  details: Record<string, unknown>;
+}
+
+export const AUDIT_ACTIONS: Record<string, string> = {
+  role_changed: 'Ruolo cambiato',
+  user_edited: 'Utente modificato',
+  user_deleted: 'Utente eliminato',
+  device_record_deleted: 'Record storico eliminato',
+  signatures_purged: 'Firme rimosse (conservazione)',
+};
+
+export async function listAudit(limit = 1000): Promise<AuditEntry[]> {
+  const { data, error } = await getSupabase().rpc('admin_list_audit', { p_limit: limit });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AuditEntry[];
+}

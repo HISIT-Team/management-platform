@@ -190,6 +190,7 @@ export const HUBS: Record<string, HubConfig> = {
     footer: FOOTER.backend,
     cards: [
       { icon: I.usersCog, name: 'Gestione Utenti', desc: 'Utenti, ruoli e dati dei profili', href: '/user-management' },
+      { icon: I.grid, name: 'Registro attività', desc: 'Chi ha cambiato ruoli, utenti e record', href: '/audit-log' },
     ],
   },
 

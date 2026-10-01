@@ -6,7 +6,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Turnstile, { type TurnstileHandle } from '@/components/Turnstile';
 import { signUpUser } from '@/lib/auth';
-import { SIGNUP_ENABLED } from '@/lib/features';
+import { PRIVACY_POLICY_URL, SIGNUP_ENABLED } from '@/lib/features';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,6 +45,7 @@ function SignupForm() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [privacyOk, setPrivacyOk] = useState(false);
   const ts = useRef<TurnstileHandle>(null);
 
   async function doSignup() {
@@ -65,6 +66,10 @@ function SignupForm() {
       setError('Passwords do not match.');
       return;
     }
+    if (PRIVACY_POLICY_URL && !privacyOk) {
+      setError('Please confirm you have read the privacy notice.');
+      return;
+    }
     const token = ts.current?.getResponse() ?? '';
     if (!token) {
       setError('Please complete the captcha.');
@@ -82,8 +87,7 @@ function SignupForm() {
       setDone(true);
     } catch (e) {
       const err = e as { message?: string; error_description?: string; msg?: string };
-      console.error('Sign up error:', e);
-      setError(err.message || err.error_description || err.msg || 'Sign up failed — see console (F12) for details.');
+      setError(err.message || err.error_description || err.msg || 'Sign up failed. Please try again later.');
       setBusy(false);
       ts.current?.reset();
     }
@@ -129,6 +133,18 @@ function SignupForm() {
             <input type="password" id="su-password2" placeholder="••••••••" autoComplete="new-password" value={pass2} onChange={(e) => setPass2(e.target.value)} />
           </div>
 
+          {PRIVACY_POLICY_URL ? (
+            <label className="privacy-check">
+              <input type="checkbox" checked={privacyOk} onChange={(e) => setPrivacyOk(e.target.checked)} />
+              <span>
+                I have read the{' '}
+                <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
+                  privacy notice
+                </a>{' '}
+                / Ho letto l&apos;informativa privacy
+              </span>
+            </label>
+          ) : null}
           <Turnstile ref={ts} style={{ marginBottom: '.9rem' }} />
           <button className="btn-login" onClick={doSignup} disabled={busy}>
             Sign up
