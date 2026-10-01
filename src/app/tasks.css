@@ -463,6 +463,32 @@
   flex-basis: 32px;
   font-size: 12px;
 }
+.task-page .avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.task-page .avatar-stack .avatar + .avatar {
+  margin-left: -7px;
+}
+.task-page .avatar.more {
+  background: #fff;
+  color: var(--muted);
+  border: 1px solid var(--gray-300);
+  box-shadow: none;
+  font-size: 9.5px;
+}
+.task-page .who-names {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.task-page .label-hint {
+  font-weight: 500;
+  color: var(--faint);
+  text-transform: none;
+  letter-spacing: 0;
+}
 .task-page .avatar.ghost {
   background: #fff;
   color: var(--faint);

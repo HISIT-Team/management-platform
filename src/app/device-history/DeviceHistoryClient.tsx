@@ -9,6 +9,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { type StudentDeviceLogRow, deleteStudentDeviceLog, listStudentDeviceLog, schoolShort } from '@/lib/deviceLog';
+import { type ExportOptions, exportDeviceHistory, filterForExport } from '@/lib/deviceExport';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const IconHistory = (
@@ -36,6 +37,13 @@ const IconTrash = (
     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
     <path d="M10 11v6M14 11v6" />
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+);
+const IconDownload = (
+  <svg viewBox="0 0 24 24">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 const IconRefresh = (
@@ -104,11 +112,29 @@ export default function DeviceHistoryClient() {
   const [toDelete, setToDelete] = useState<StudentDeviceLogRow | null>(null);
   const [busy, setBusy] = useState(false);
   const { showToast, toastNode } = useToast();
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exp, setExp] = useState<ExportOptions>({ device: 'all', operation: 'all', school: 'all', from: '', to: '' });
+  const expCount = useMemo(() => filterForExport(rows, exp).length, [rows, exp]);
+
+  const handleExport = async () => {
+    setBusy(true);
+    try {
+      const n = await exportDeviceHistory(rows, exp);
+      showToast(`Export creato ✓ — ${n} ${n === 1 ? 'riga' : 'righe'}`);
+      setExportOpen(false);
+    } catch (e) {
+      showToast('Export non riuscito: ' + (e as Error).message, true);
+    }
+    setBusy(false);
+  };
 
   // Escape closes the confirmation dialog.
   useEffect(() => {
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape' && !busy) setToDelete(null);
+      if (ev.key === 'Escape' && !busy) {
+        setToDelete(null);
+        setExportOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -219,10 +245,16 @@ export default function DeviceHistoryClient() {
                 <p>Consegne (check-out) e restituzioni (check-in) registrate dal form studenti</p>
               </div>
             </div>
-            <button className="btn-quiet" onClick={load} disabled={loading}>
-              {IconRefresh}
-              Aggiorna
-            </button>
+            <div className="dh-head-actions">
+              <button className="btn-quiet" onClick={load} disabled={loading}>
+                {IconRefresh}
+                Aggiorna
+              </button>
+              <button className="btn-primary" onClick={() => setExportOpen(true)} disabled={loading || rows.length === 0}>
+                {IconDownload}
+                Esporta Excel
+              </button>
+            </div>
           </div>
 
           {error ? (
@@ -446,6 +478,96 @@ export default function DeviceHistoryClient() {
             </div>
           </div>
         ) : null}
+        {/* ── Export dialog ── */}
+        {exportOpen ? (
+          <div
+            className="b-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Esporta in Excel"
+            onMouseDown={(ev) => {
+              if (ev.target === ev.currentTarget && !busy) setExportOpen(false);
+            }}
+          >
+            <div className="b-modal" style={{ maxWidth: 480 }}>
+              <div className="b-modal-head">
+                <div className="mi">{IconDownload}</div>
+                <div>
+                  <h2>Esporta in Excel</h2>
+                  <p>Scegli cosa includere nel file .xlsx</p>
+                </div>
+              </div>
+              <div className="b-modal-body">
+                <div className="field">
+                  <label>Dispositivo</label>
+                  <div className="filters dh-opts">
+                    {(
+                      [
+                        ['all', 'Tutti'],
+                        ['macbook', 'MacBook'],
+                        ['ipad', 'iPad'],
+                      ] as const
+                    ).map(([v, l]) => (
+                      <button key={v} type="button" className={'fchip' + (exp.device === v ? ' active' : '')} onClick={() => setExp({ ...exp, device: v })}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Operazione</label>
+                  <div className="filters dh-opts">
+                    {(
+                      [
+                        ['all', 'Tutte'],
+                        ['Check-out', 'Consegne'],
+                        ['Check-in', 'Restituzioni'],
+                      ] as const
+                    ).map(([v, l]) => (
+                      <button key={v} type="button" className={'fchip' + (exp.operation === v ? ' active' : '')} onClick={() => setExp({ ...exp, operation: v })}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {schools.length > 1 ? (
+                  <div className="field">
+                    <label htmlFor="exp-school">Scuola</label>
+                    <select id="exp-school" value={exp.school} onChange={(e) => setExp({ ...exp, school: e.target.value })}>
+                      <option value="all">Tutte le scuole</option>
+                      {schools.map((sc) => (
+                        <option key={sc} value={sc}>
+                          {schoolShort(sc)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <div className="dh-row2">
+                  <div className="field">
+                    <label htmlFor="exp-from">Dal (facoltativo)</label>
+                    <input id="exp-from" type="date" value={exp.from} onChange={(e) => setExp({ ...exp, from: e.target.value })} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="exp-to">Al (facoltativo)</label>
+                    <input id="exp-to" type="date" value={exp.to} onChange={(e) => setExp({ ...exp, to: e.target.value })} />
+                  </div>
+                </div>
+                <p className={'dh-exp-count' + (expCount === 0 ? ' none' : '')}>
+                  {expCount === 0 ? 'Nessun movimento corrisponde a questi criteri.' : `Verranno esportati ${expCount} ${expCount === 1 ? 'movimento' : 'movimenti'}.`}
+                </p>
+              </div>
+              <div className="b-modal-foot">
+                <button className="btn-quiet" onClick={() => setExportOpen(false)} disabled={busy}>
+                  Annulla
+                </button>
+                <button className="btn-primary" onClick={handleExport} disabled={busy || expCount === 0}>
+                  {busy ? 'Creazione…' : 'Scarica .xlsx'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
         {toastNode}
       </div>
 
@@ -474,6 +596,12 @@ export default function DeviceHistoryClient() {
         .dh-page .dh-none, .dh-page .dh-muted { color: var(--b-muted); }
         .dh-page tbody td { white-space: nowrap; }
         .dh-page td.col-actions { width: 44px; text-align: right; }
+        .dh-page .dh-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .dh-page .dh-opts { margin-bottom: 0; }
+        .dh-page .dh-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .dh-page .dh-exp-count { font-size: 13px; font-weight: 600; color: #3B6D11; background: #EAF3DE; border-radius: 11px; padding: .6rem .85rem; margin-top: .4rem; }
+        .dh-page .dh-exp-count.none { color: var(--b-warn); background: #FFF3E4; }
+        @media (max-width: 520px) { .dh-page .dh-row2 { grid-template-columns: 1fr; } }
         @media (max-width: 860px) { .dh-page .dh-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       `}</style>
     </AuthGuard>

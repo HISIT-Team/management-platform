@@ -124,6 +124,8 @@ const arrow = (
 interface DashUser {
   name: string;
   roles: string[];
+  avatar: string | null;
+  initials: string;
 }
 
 export default function HomePage() {
@@ -148,9 +150,19 @@ export default function HomePage() {
         }
       }
       if (!active) return;
+      const name = profileName(profile, authUser.email ?? '');
       setUser({
-        name: profileName(profile, authUser.email ?? ''),
+        name,
         roles: profileRoles(profile),
+        avatar: typeof profile?.avatar === 'string' ? profile.avatar : null,
+        initials:
+          name
+            .split(/[\s@.]+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((p) => p[0])
+            .join('')
+            .toUpperCase() || '?',
       });
       setLoading(false);
     })();
@@ -206,6 +218,14 @@ export default function HomePage() {
         /* ── DASHBOARD ── */
         <div id="dashboard-screen" style={{ display: 'block' }}>
           <div className="welcome-bar">
+            <Link href="/profile" className="welcome-avatar" title="My profile" aria-label="My profile">
+              {user.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.avatar} alt="" />
+              ) : (
+                <span>{user.initials}</span>
+              )}
+            </Link>
             <div className="welcome-text">
               <div>
                 Signed in as <strong>{user.name}</strong>
@@ -218,9 +238,14 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-            <button className="btn-logout" onClick={doLogout}>
-              Sign out
-            </button>
+            <div className="welcome-actions">
+              <Link className="btn-logout btn-profile" href="/profile">
+                My profile
+              </Link>
+              <button className="btn-logout" onClick={doLogout}>
+                Sign out
+              </button>
+            </div>
           </div>
           <div className="cards">
             {visible.length === 0 ? (

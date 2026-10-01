@@ -41,7 +41,10 @@ export interface Task {
   /** Annotazioni libere, separate dalla descrizione: la card le segnala. */
   notes: string | null;
   group_id: string | null;
+  /** Primo assegnatario: tenuto in sync dal DB, solo compatibilità. */
   assignee_id: string | null;
+  /** Assegnatari (anche più di uno) — vedi migrazione 0011. */
+  assignee_ids: string[];
   status: TaskStatus;
   priority: TaskPriority;
   start_date: string | null; // YYYY-MM-DD
@@ -211,7 +214,7 @@ const SUBTASKS = 'it_subtasks';
 const GROUP_COLS = 'id,name,description,color,sort_order,active';
 const MEMBER_COLS = 'id,full_name,email,color,sort_order,active';
 const TASK_COLS =
-  'id,title,description,notes,group_id,assignee_id,status,priority,start_date,due_date,estimated_hours,position,completed_at,created_by_name,created_at,updated_at';
+  'id,title,description,notes,group_id,assignee_id,assignee_ids,status,priority,start_date,due_date,estimated_hours,position,completed_at,created_by_name,created_at,updated_at';
 const SUBTASK_COLS = 'id,task_id,title,description,assignee_id,status,position,created_at,updated_at';
 
 // PostgREST può restituire numeric come stringa a seconda del driver.
@@ -219,6 +222,11 @@ function toTask(row: Record<string, unknown>): Task {
   return {
     ...(row as unknown as Task),
     position: Number(row.position) || 0,
+    assignee_ids: Array.isArray(row.assignee_ids)
+      ? (row.assignee_ids as string[]).filter(Boolean)
+      : row.assignee_id
+        ? [row.assignee_id as string]
+        : [],
     estimated_hours: row.estimated_hours === null || row.estimated_hours === undefined ? null : Number(row.estimated_hours),
   };
 }
@@ -303,7 +311,7 @@ export async function createTask(input: NewTask): Promise<Task> {
       description: input.description || null,
       notes: input.notes || null,
       group_id: input.group_id || null,
-      assignee_id: input.assignee_id || null,
+      assignee_ids: input.assignee_ids ?? [],
       status: input.status || 'open',
       priority: input.priority || 'medium',
       start_date: input.start_date || null,

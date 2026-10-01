@@ -209,6 +209,21 @@ function Avatar({ member, big }: { member?: TaskMember | null; big?: boolean }) 
   );
 }
 
+/** Più assegnatari: avatar sovrapposti, oltre `max` un "+N". */
+function AvatarStack({ members, max = 3, big }: { members: TaskMember[]; max?: number; big?: boolean }) {
+  if (!members.length) return <Avatar member={null} big={big} />;
+  const shown = members.slice(0, max);
+  const extra = members.length - shown.length;
+  return (
+    <span className="avatar-stack" title={members.map((m) => m.full_name).join(', ')}>
+      {shown.map((m) => (
+        <Avatar key={m.id} member={m} big={big} />
+      ))}
+      {extra > 0 ? <span className={'avatar more' + (big ? ' lg' : '')}>+{extra}</span> : null}
+    </span>
+  );
+}
+
 function DueChip({ task }: { task: Task }) {
   if (!task.due_date) return null;
   const d = daysUntil(task.due_date);
@@ -238,7 +253,7 @@ const SUBS_ON_CARD = 5;
 interface TaskCardProps {
   task: Task;
   group?: TaskGroup | null;
-  member?: TaskMember | null;
+  assignees: TaskMember[];
   members: Map<string, TaskMember>;
   subs: Subtask[];
   dragging: boolean;
@@ -253,7 +268,7 @@ interface TaskCardProps {
 function TaskCard({
   task,
   group,
-  member,
+  assignees,
   members,
   subs,
   dragging,
@@ -333,7 +348,7 @@ function TaskCard({
       ) : null}
 
       <div className="tcard-foot">
-        <Avatar member={member} />
+        <AvatarStack members={assignees} />
         {subs.length ? (
           <span className="subprog" title={`${doneSubs} di ${subs.length} sotto-task completate`}>
             <span className="bar">
@@ -424,7 +439,7 @@ export default function TaskManagerClient() {
   const [fDesc, setFDesc] = useState('');
   const [fNotes, setFNotes] = useState('');
   const [fGroupId, setFGroupId] = useState<string>('');
-  const [fAssigneeId, setFAssigneeId] = useState<string>('');
+  const [fAssigneeIds, setFAssigneeIds] = useState<string[]>([]);
   const [fTaskStatus, setFTaskStatus] = useState<TaskStatus>('open');
   const [fTaskPriority, setFTaskPriority] = useState<TaskPriority>('medium');
   const [fStart, setFStart] = useState('');
@@ -512,6 +527,11 @@ export default function TaskManagerClient() {
   const sort = useMemo(() => SORTS.find((s) => s.key === sortKey) ?? SORTS[0], [sortKey]);
   const manualOrder = sort.by === 'position';
 
+  const assigneesOf = useCallback(
+    (t: Task) => t.assignee_ids.map((id) => memberById.get(id)).filter((m): m is TaskMember => !!m),
+    [memberById],
+  );
+
   /* ── Filtri ──────────────────────────────────────────────────── */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -519,7 +539,8 @@ export default function TaskManagerClient() {
     return tasks
       .filter((t) => {
         if (fGroup !== 'all' && (t.group_id || 'none') !== fGroup) return false;
-        if (fAssignee !== 'all' && (t.assignee_id || 'none') !== fAssignee) return false;
+        if (fAssignee === 'none' && t.assignee_ids.length) return false;
+        if (fAssignee !== 'all' && fAssignee !== 'none' && !t.assignee_ids.includes(fAssignee)) return false;
         if (fPriority !== 'all' && t.priority !== fPriority) return false;
         if (fStatus !== 'all' && t.status !== fStatus) return false;
         if (onlyOverdue) {
@@ -528,14 +549,16 @@ export default function TaskManagerClient() {
         }
         if (q) {
           const group = t.group_id ? groupById.get(t.group_id)?.name ?? '' : '';
-          const who = t.assignee_id ? memberById.get(t.assignee_id)?.full_name ?? '' : '';
+          const who = assigneesOf(t)
+            .map((m) => m.full_name)
+            .join(' ');
           const hay = (t.title + ' ' + (t.description || '') + ' ' + group + ' ' + who).toLowerCase();
           if (!hay.includes(q)) return false;
         }
         return true;
       })
       .sort(cmp);
-  }, [tasks, query, fGroup, fAssignee, fPriority, fStatus, onlyOverdue, sort, groupById, memberById]);
+  }, [tasks, query, fGroup, fAssignee, fPriority, fStatus, onlyOverdue, sort, groupById, assigneesOf]);
 
   const byStatus = useMemo(() => {
     const out = {} as Record<TaskStatus, Task[]>;
@@ -576,7 +599,7 @@ export default function TaskManagerClient() {
       setFDesc('');
       setFNotes('');
       setFGroupId(fGroup !== 'all' && fGroup !== 'none' ? fGroup : '');
-      setFAssigneeId(fAssignee !== 'all' && fAssignee !== 'none' ? fAssignee : '');
+      setFAssigneeIds(fAssignee !== 'all' && fAssignee !== 'none' ? [fAssignee] : []);
       setFTaskStatus(status);
       setFTaskPriority('medium');
       setFStart('');
@@ -594,7 +617,7 @@ export default function TaskManagerClient() {
     setFDesc(t.description || '');
     setFNotes(t.notes || '');
     setFGroupId(t.group_id || '');
-    setFAssigneeId(t.assignee_id || '');
+    setFAssigneeIds(t.assignee_ids);
     setFTaskStatus(t.status);
     setFTaskPriority(t.priority);
     setFStart(t.start_date || '');
@@ -624,7 +647,7 @@ export default function TaskManagerClient() {
           description: fDesc.trim() || null,
           notes: fNotes.trim() || null,
           group_id: fGroupId || null,
-          assignee_id: fAssigneeId || null,
+          assignee_ids: fAssigneeIds,
           status: fTaskStatus,
           priority: fTaskPriority,
           start_date: fStart || null,
@@ -640,7 +663,7 @@ export default function TaskManagerClient() {
           description: fDesc.trim() || null,
           notes: fNotes.trim() || null,
           group_id: fGroupId || null,
-          assignee_id: fAssigneeId || null,
+          assignee_ids: fAssigneeIds,
           status: fTaskStatus,
           priority: fTaskPriority,
           start_date: fStart || null,
@@ -1064,7 +1087,7 @@ export default function TaskManagerClient() {
                           <TaskCard
                             task={t}
                             group={t.group_id ? groupById.get(t.group_id) : null}
-                            member={t.assignee_id ? memberById.get(t.assignee_id) : null}
+                            assignees={assigneesOf(t)}
                             members={memberById}
                             subs={subsByTask.get(t.id) || EMPTY_SUBS}
                             dragging={draggingId === t.id}
@@ -1105,7 +1128,7 @@ export default function TaskManagerClient() {
                       <tr>
                         <th>Task</th>
                         <th>Gruppo</th>
-                        <th>Assegnatario</th>
+                        <th>Assegnatari</th>
                         <th>Priorità</th>
                         <th>Status</th>
                         <th>Start</th>
@@ -1117,7 +1140,7 @@ export default function TaskManagerClient() {
                     <tbody>
                       {filtered.map((t) => {
                         const g = t.group_id ? groupById.get(t.group_id) : null;
-                        const m = t.assignee_id ? memberById.get(t.assignee_id) : null;
+                        const who = assigneesOf(t);
                         const pr = priorityMeta(t.priority);
                         const st = statusMeta(t.status);
                         const subs = subsByTask.get(t.id) || [];
@@ -1149,8 +1172,12 @@ export default function TaskManagerClient() {
                             </td>
                             <td>
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                                <Avatar member={m} />
-                                {m ? m.full_name : <span style={{ color: 'var(--faint)' }}>—</span>}
+                                <AvatarStack members={who} />
+                                {who.length ? (
+                                  <span className="who-names">{who.map((m) => m.full_name).join(', ')}</span>
+                                ) : (
+                                  <span style={{ color: 'var(--faint)' }}>—</span>
+                                )}
                               </span>
                             </td>
                             <td>
@@ -1350,13 +1377,15 @@ export default function TaskManagerClient() {
                 </div>
 
                 <div className="field">
-                  <label>Assegnatario</label>
+                  <label>
+                    Assegnatari <span className="label-hint">— puoi selezionarne più di uno</span>
+                  </label>
                   <div className="picker">
                     <button
                       type="button"
-                      className={'pick pad' + (fAssigneeId === '' ? ' selected' : '')}
+                      className={'pick pad' + (fAssigneeIds.length === 0 ? ' selected' : '')}
                       style={vars(NEUTRAL.accent, NEUTRAL.soft)}
-                      onClick={() => setFAssigneeId('')}
+                      onClick={() => setFAssigneeIds([])}
                     >
                       Non assegnata
                     </button>
@@ -1364,9 +1393,12 @@ export default function TaskManagerClient() {
                       <button
                         type="button"
                         key={m.id}
-                        className={'pick' + (fAssigneeId === m.id ? ' selected' : '')}
+                        className={'pick' + (fAssigneeIds.includes(m.id) ? ' selected' : '')}
                         style={vars(m.color, m.color + '1f')}
-                        onClick={() => setFAssigneeId(m.id)}
+                        aria-pressed={fAssigneeIds.includes(m.id)}
+                        onClick={() =>
+                          setFAssigneeIds((prev) => (prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id]))
+                        }
                       >
                         <span className="avatar" style={vars(m.color, m.color)}>
                           {initials(m.full_name)}
