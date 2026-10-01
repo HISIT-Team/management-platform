@@ -3,6 +3,7 @@ import './globals.css';
 import './forms.css';
 import './budget.css';
 import './tasks.css';
+import IdleWatcher from '@/components/IdleWatcher';
 
 export const metadata: Metadata = {
   title: {
@@ -29,7 +30,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <IdleWatcher />
+        {children}
+      </body>
     </html>
   );
 }

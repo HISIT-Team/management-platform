@@ -46,10 +46,12 @@ const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('it-IT', { day
 const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 
 const OP_TAG: Record<string, React.CSSProperties> = {
-  'Check-in': { ['--accent' as string]: '#2F6E5B', ['--accent-soft' as string]: '#E6F2EC' },
-  'Check-out': { ['--accent' as string]: '#8B1A2B', ['--accent-soft' as string]: '#F9EFF0' },
+  'Check-out': { ['--accent' as string]: '#2F6E5B', ['--accent-soft' as string]: '#E6F2EC' },
+  'Check-in': { ['--accent' as string]: '#8B1A2B', ['--accent-soft' as string]: '#F9EFF0' },
 };
-const OP_LABEL: Record<string, string> = { 'Check-in': 'Consegna', 'Check-out': 'Restituzione' };
+/* HIS convention: Check-out = delivery to the student, Check-in = return to IT. */
+const DELIVERY = 'Check-out';
+const OP_LABEL: Record<string, string> = { 'Check-out': 'Consegna', 'Check-in': 'Restituzione' };
 
 interface Holding {
   email: string;
@@ -61,8 +63,8 @@ interface LastMove {
   at: string;
 }
 
-/* Replays the history oldest → newest: a Check-in assigns the device to the
-   student, a Check-out releases it. */
+/* Replays the history oldest → newest: a delivery (Check-out) assigns the
+   device to the student, a return (Check-in) releases it. */
 function computeState(rows: StudentDeviceLogRow[]) {
   const holders = { mac: new Map<string, Holding>(), ipad: new Map<string, Holding>() };
   const last = new Map<string, LastMove>(); // device id (lowercase) → last movement
@@ -75,7 +77,7 @@ function computeState(rows: StudentDeviceLogRow[]) {
       const key = norm(id);
       if (!key) continue;
       last.set(key, { op: r.operation, email: r.student_email, at: r.created_at });
-      if (r.operation === 'Check-in') holders[kind].set(key, { email: r.student_email, since: r.created_at });
+      if (r.operation === DELIVERY) holders[kind].set(key, { email: r.student_email, since: r.created_at });
       else holders[kind].delete(key);
     }
   }
@@ -129,9 +131,9 @@ export default function DeviceHistoryClient() {
   );
 
   const counts = useMemo(() => {
-    let checkin = 0;
-    for (const r of rows) if (r.operation === 'Check-in') checkin++;
-    return { checkin, checkout: rows.length - checkin };
+    let deliveries = 0;
+    for (const r of rows) if (r.operation === DELIVERY) deliveries++;
+    return { deliveries, returns: rows.length - deliveries };
   }, [rows]);
 
   /* Exact match on a device ID or an email → current-status summary. */
@@ -179,7 +181,7 @@ export default function DeviceHistoryClient() {
                 <h1>
                   Storico <em>assegnazioni</em>
                 </h1>
-                <p>Check-in e check-out dei dispositivi registrati dal form studenti</p>
+                <p>Consegne (check-out) e restituzioni (check-in) registrate dal form studenti</p>
               </div>
             </div>
             <button className="btn-quiet" onClick={load} disabled={loading}>
@@ -206,7 +208,7 @@ export default function DeviceHistoryClient() {
                   <div className="stat-lbl">Movimenti</div>
                   <div className="stat-val">{rows.length}</div>
                   <div className="stat-sub">
-                    {counts.checkin} consegne · {counts.checkout} restituzioni
+                    {counts.deliveries} consegne · {counts.returns} restituzioni
                   </div>
                 </div>
                 <div className="stat is-spent">
@@ -254,7 +256,7 @@ export default function DeviceHistoryClient() {
           {summary ? <div className={'dh-summary ' + summary.tone}>{summary.text}</div> : null}
 
           <div className="filters dh-filters">
-            {(['all', 'Check-in', 'Check-out'] as OpFilter[]).map((o) => (
+            {(['all', 'Check-out', 'Check-in'] as OpFilter[]).map((o) => (
               <button key={o} className={'fchip' + (op === o ? ' active' : '')} onClick={() => setOp(o)}>
                 {o === 'all' ? 'Tutti i movimenti' : OP_LABEL[o]}
               </button>

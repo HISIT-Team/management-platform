@@ -319,8 +319,8 @@ export const HUBS: Record<string, HubConfig> = {
     subtitle: 'Device delivery and return — staff',
     footer: FOOTER.it,
     cards: [
-      { icon: I.checkin, name: 'Check-in', desc: 'Device delivered to employee', href: '/modulo-employee?op=checkin' },
-      { icon: I.checkout, name: 'Check-out', desc: 'Device returned by employee', href: '/modulo-employee?op=checkout' },
+      { icon: I.checkin, name: 'Check-out', desc: 'Device delivered to employee', href: '/modulo-employee?op=checkout' },
+      { icon: I.checkout, name: 'Check-in', desc: 'Device returned by employee', href: '/modulo-employee?op=checkin' },
     ],
   },
 
@@ -332,8 +332,8 @@ export const HUBS: Record<string, HubConfig> = {
     subtitle: 'Device delivery and return — students',
     footer: FOOTER.it,
     cards: [
-      { icon: I.checkin, name: 'Check-in', desc: 'Device delivered to student', href: '/modulo-student?op=checkin' },
-      { icon: I.checkout, name: 'Check-out', desc: 'Device returned by student', href: '/modulo-student?op=checkout' },
+      { icon: I.checkin, name: 'Check-out', desc: 'Device delivered to student', href: '/modulo-student?op=checkout' },
+      { icon: I.checkout, name: 'Check-in', desc: 'Device returned by student', href: '/modulo-student?op=checkin' },
     ],
   },
 };

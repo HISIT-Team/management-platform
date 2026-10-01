@@ -43,9 +43,11 @@ interface DeviceState {
   damagePhotos: string[];
 }
 
+/* HIS convention: Check-out = device handed TO the {kind} (delivery),
+   Check-in = device given BACK to IT (return). */
 const OPTIONS: { value: 'Check-in' | 'Check-out'; icon: React.ReactNode; sub: (kind: string) => string }[] = [
   {
-    value: 'Check-in',
+    value: 'Check-out',
     icon: (
       <svg viewBox="0 0 24 24">
         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
@@ -54,7 +56,7 @@ const OPTIONS: { value: 'Check-in' | 'Check-out'; icon: React.ReactNode; sub: (k
     sub: (k) => `Device delivered to ${k}`,
   },
   {
-    value: 'Check-out',
+    value: 'Check-in',
     icon: (
       <svg viewBox="0 0 24 24">
         <polyline points="1 4 1 10 7 10" />

@@ -4,6 +4,7 @@
    ═══════════════════════════════════════════════════════════════════ */
 import type { User } from '@supabase/supabase-js';
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
+import { clearActivity, isIdleExpired, touchActivity } from './idle';
 
 // Where the confirmation / reset links send the user back to.
 // IMPORTANT: add these exact URLs in Supabase →
@@ -65,6 +66,7 @@ export async function signInUser({ email, password, captchaToken }: SignInArgs) 
     options: { captchaToken },
   });
   if (error) throw error;
+  touchActivity(); // fresh login → inactivity timer starts now
   return data;
 }
 
@@ -72,6 +74,7 @@ export async function signInUser({ email, password, captchaToken }: SignInArgs) 
 export async function signOutUser() {
   const sb = getSupabase();
   const { error } = await sb.auth.signOut();
+  clearActivity();
   if (error) throw error;
 }
 
@@ -97,6 +100,16 @@ export async function updateUserPassword(newPassword: string) {
 export async function getCurrentUser(): Promise<User | null> {
   const sb = getSupabase();
   const { data: { user } } = await sb.auth.getUser();
+  // Inactivity timeout (src/lib/idle.ts): an expired session counts as signed out.
+  if (user && isIdleExpired()) {
+    try {
+      await sb.auth.signOut();
+    } catch {
+      /* local session is cleared anyway */
+    }
+    clearActivity();
+    return null;
+  }
   return user;
 }
 
