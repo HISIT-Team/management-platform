@@ -1,0 +1,30 @@
+{
+  "form_type": "student_checkout",
+  "operation": "Check-out",
+  "operation_label": "Consegna",
+  "type": "student",
+  "timestamp": "2026-10-01T15:37:12.881Z",
+  "first_name": "Marco",
+  "last_name": "Rossi",
+  "email": "m.rossi@h-farmschool.com",
+  "school_or_company": "H-INTERNATIONAL SCHOOL SRL",
+  "parent_email_1": "parent1@example.com",
+  "parent_email_2": "",
+  "devices": ["MacBook", "MacBook Charger", "iPad"],
+  "macbook_id": "C02XK1ABJG5H",
+  "ipad_id": "DMPXR2KQ1F",
+  "accessories_id": "",
+  "device_details": {
+    "MacBook": { "asset_id": "C02XK1ABJG5H", "images": [], "has_damage": false, "damage_photos": [] },
+    "iPad": { "asset_id": "DMPXR2KQ1F", "images": [], "has_damage": false, "damage_photos": [] }
+  },
+  "signed_by": "Student",
+  "signature_data_url": "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+  "signature_base64": "/9j/4AAQSkZJRg==",
+  "signature_mime": "image/jpeg",
+  "photos": [
+    { "name": "MacBook_photo_1.jpg", "category": "device", "device": "MacBook", "mime": "image/jpeg", "base64": "/9j/4AAQSkZJRg==" }
+  ],
+  "submitted_by": { "id": "00000000-0000-0000-0000-000000000000", "email": "it@h-farmschool.com", "role": "it" },
+  "received_at": "2026-10-01T15:37:13.102Z"
+}

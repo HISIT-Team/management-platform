@@ -17,9 +17,10 @@ export interface StudentDeviceLogEntry {
 }
 
 /* Shrinks the signature for storage: white background, 480px wide,
-   WebP (JPEG where the browser can't encode WebP, e.g. older Safari).
+   WebP by default (JPEG where the browser can't encode WebP, e.g. older
+   Safari); pass 'image/jpeg' for consumers like Outlook/Power Automate.
    Typically 3–10 KB instead of the 20–40 KB of the original PNG. */
-export function compactSignature(pngDataUrl: string, width = 480, quality = 0.7): Promise<string | null> {
+export function compactSignature(pngDataUrl: string, width = 480, quality = 0.7, mime: 'image/webp' | 'image/jpeg' = 'image/webp'): Promise<string | null> {
   return new Promise((resolve) => {
     if (!pngDataUrl) return resolve(null);
     const img = new Image();
@@ -33,8 +34,8 @@ export function compactSignature(pngDataUrl: string, width = 480, quality = 0.7)
       ctx.fillStyle = '#fff';
       ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0, c.width, c.height);
-      let out = c.toDataURL('image/webp', quality);
-      if (!out.startsWith('data:image/webp')) out = c.toDataURL('image/jpeg', quality);
+      let out = c.toDataURL(mime, quality);
+      if (!out.startsWith('data:' + mime)) out = c.toDataURL('image/jpeg', quality);
       // The table rejects anything over 60 KB; never let a huge image fail the insert.
       resolve(out.length <= 60000 ? out : c.toDataURL('image/jpeg', 0.4));
     };

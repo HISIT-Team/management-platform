@@ -10,6 +10,7 @@ import { useToast } from '@/components/useToast';
 import { compressImage } from '@/lib/image';
 import { submitForm } from '@/lib/auth';
 import { compactSignature, logStudentDevice } from '@/lib/deviceLog';
+import { notifyPowerAutomate, splitDataUrl } from '@/lib/powerAutomate';
 
 export interface DeviceDef {
   name: string;
@@ -273,27 +274,67 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
             };
       await submitForm(config.formTypeByOp[op], payload);
 
-      // Student forms: also keep a row in `student_device_log`. The form is
-      // already sent at this point, so a logging failure only warns.
-      let logFailed = false;
-      if (config.kind === 'student') {
-        const assetId = (dev: string) => (selected.includes(dev) ? getState(dev).assetId.trim() || null : null);
-        try {
-          await logStudentDevice({
-            operation: op,
-            student_email: email.trim(),
-            school: org,
-            macbook_id: assetId('MacBook'),
-            ipad_id: assetId('iPad'),
-            signed_by: signer,
-            signature: await compactSignature(base.signature),
-          });
-        } catch (e) {
-          logFailed = true;
-          console.error('student_device_log insert failed', e);
-        }
+      // After the form is sent: (1) student forms keep a row in
+      // `student_device_log`; (2) every form is forwarded to Power Automate.
+      // Both run in parallel and only warn on failure — the form is already sent.
+      const assetId = (dev: string) => (selected.includes(dev) ? getState(dev).assetId.trim() : '');
+      const formType = config.formTypeByOp[op];
+
+      const logTask = async () => {
+        if (config.kind !== 'student') return;
+        await logStudentDevice({
+          operation: op,
+          student_email: email.trim(),
+          school: org,
+          macbook_id: assetId('MacBook') || null,
+          ipad_id: assetId('iPad') || null,
+          signed_by: signer,
+          signature: await compactSignature(base.signature),
+        });
+      };
+
+      const paTask = async () => {
+        const sigJpeg = (await compactSignature(base.signature, 640, 0.8, 'image/jpeg')) ?? '';
+        const sig = splitDataUrl(sigJpeg);
+        await notifyPowerAutomate({
+          form_type: formType,
+          operation: op,
+          operation_label: op === 'Check-out' ? 'Consegna' : 'Restituzione',
+          type: config.kind,
+          timestamp: base.timestamp,
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          email: email.trim(),
+          school_or_company: org,
+          parent_email_1: config.kind === 'student' ? email1.trim() : '',
+          parent_email_2: config.kind === 'student' ? email2.trim() : '',
+          devices: selected,
+          macbook_id: assetId('MacBook'),
+          ipad_id: assetId('iPad'),
+          accessories_id: assetId('Accessories'),
+          device_details: base.device_details,
+          signed_by: signer,
+          signature_data_url: sigJpeg,
+          signature_base64: sig.base64,
+          signature_mime: sig.mime,
+          photos: (config.kind === 'student' ? buildAllPhotos() : []).map((ph) => {
+            const p = splitDataUrl(ph.data);
+            return { name: ph.name, category: ph.category, device: ph.device, mime: p.mime, base64: p.base64 };
+          }),
+        });
+      };
+
+      const [logRes, paRes] = await Promise.allSettled([logTask(), paTask()]);
+      const warnings: string[] = [];
+      if (logRes.status === 'rejected') {
+        warnings.push('device log');
+        console.error('student_device_log insert failed', logRes.reason);
       }
-      if (logFailed) showToast('Form submitted ✓ — but saving to the device log failed', true);
+      if (paRes.status === 'rejected') {
+        warnings.push('Power Automate');
+        console.error('Power Automate notification failed', paRes.reason);
+      }
+      if (warnings.length) showToast(`Form submitted ✓ — but ${warnings.join(' and ')} failed`, true);
       else showToast('Form submitted ✓');
       resetForm();
     } catch (e) {
