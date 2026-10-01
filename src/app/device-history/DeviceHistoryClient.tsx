@@ -7,7 +7,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
-import { type StudentDeviceLogRow, listStudentDeviceLog, schoolShort } from '@/lib/deviceLog';
+import { useToast } from '@/components/useToast';
+import { type StudentDeviceLogRow, deleteStudentDeviceLog, listStudentDeviceLog, schoolShort } from '@/lib/deviceLog';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const IconHistory = (
@@ -27,6 +28,14 @@ const IconClose = (
   <svg viewBox="0 0 24 24">
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+const IconTrash = (
+  <svg viewBox="0 0 24 24">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
 const IconRefresh = (
@@ -92,6 +101,32 @@ export default function DeviceHistoryClient() {
   const [op, setOp] = useState<OpFilter>('all');
   const [school, setSchool] = useState('all');
   const [limit, setLimit] = useState(PAGE);
+  const [toDelete, setToDelete] = useState<StudentDeviceLogRow | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { showToast, toastNode } = useToast();
+
+  // Escape closes the confirmation dialog.
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape' && !busy) setToDelete(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy]);
+
+  const handleDelete = async () => {
+    if (!toDelete) return;
+    setBusy(true);
+    try {
+      await deleteStudentDeviceLog(toDelete.id);
+      setRows((prev) => prev.filter((r) => r.id !== toDelete.id));
+      showToast('Record eliminato ✓');
+      setToDelete(null);
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setBusy(false);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -304,6 +339,7 @@ export default function DeviceHistoryClient() {
                       <th>iPad ID</th>
                       <th>Scuola</th>
                       <th>Firmato da</th>
+                      <th />
                     </tr>
                   </thead>
                   <tbody>
@@ -340,6 +376,16 @@ export default function DeviceHistoryClient() {
                         </td>
                         <td>{schoolShort(r.school)}</td>
                         <td className="dh-muted">{r.signed_by ?? '—'}</td>
+                        <td className="col-actions">
+                          <button
+                            className="icon-btn"
+                            title="Elimina record"
+                            aria-label={`Elimina il record del ${fmtDateTime(r.created_at)} di ${r.student_email}`}
+                            onClick={() => setToDelete(r)}
+                          >
+                            {IconTrash}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -361,6 +407,46 @@ export default function DeviceHistoryClient() {
             <span>Via Adriano Olivetti 1 - 31056 Roncade (TV)</span>
           </footer>
         </div>
+
+        {/* ── Delete confirmation ── */}
+        {toDelete ? (
+          <div
+            className="b-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Conferma eliminazione"
+            onMouseDown={(ev) => {
+              if (ev.target === ev.currentTarget && !busy) setToDelete(null);
+            }}
+          >
+            <div className="b-modal" style={{ maxWidth: 420 }}>
+              <div className="b-modal-head">
+                <div className="mi">{IconTrash}</div>
+                <div>
+                  <h2>Eliminare il record?</h2>
+                  <p>L&apos;operazione non si può annullare</p>
+                </div>
+              </div>
+              <div className="b-modal-body">
+                <p className="confirm-text">
+                  <strong>{OP_LABEL[toDelete.operation]}</strong> del {fmtDateTime(toDelete.created_at)} —{' '}
+                  {toDelete.student_email}
+                  {toDelete.macbook_id ? ` · MacBook ${toDelete.macbook_id}` : ''}
+                  {toDelete.ipad_id ? ` · iPad ${toDelete.ipad_id}` : ''}. Anche la firma salvata verrà eliminata.
+                </p>
+              </div>
+              <div className="b-modal-foot">
+                <button className="btn-quiet" onClick={() => setToDelete(null)} disabled={busy}>
+                  Annulla
+                </button>
+                <button className="btn-primary" onClick={handleDelete} disabled={busy}>
+                  {busy ? 'Eliminazione…' : 'Elimina'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {toastNode}
       </div>
 
       <style>{`
@@ -387,6 +473,7 @@ export default function DeviceHistoryClient() {
         .dh-page .dh-mono .dh-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
         .dh-page .dh-none, .dh-page .dh-muted { color: var(--b-muted); }
         .dh-page tbody td { white-space: nowrap; }
+        .dh-page td.col-actions { width: 44px; text-align: right; }
         @media (max-width: 860px) { .dh-page .dh-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       `}</style>
     </AuthGuard>

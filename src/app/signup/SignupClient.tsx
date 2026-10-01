@@ -6,10 +6,37 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Turnstile, { type TurnstileHandle } from '@/components/Turnstile';
 import { signUpUser } from '@/lib/auth';
+import { SIGNUP_ENABLED } from '@/lib/features';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/* Shown instead of the form while self-registration is off (src/lib/features.ts). */
+function SignupClosed() {
+  return (
+    <div className="page">
+      <Header titlePre="Management " titleSpan="Platform" />
+      <div id="signup-screen">
+        <div className="login-card">
+          <h2>Registration closed</h2>
+          <p className="login-sub">
+            New accounts can&apos;t be created from this page at the moment. If you need access to the platform, please
+            contact the IT department.
+          </p>
+          <Link className="btn-login" href="/login">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+      <Footer text="H-FARM International School · Management Platform" />
+    </div>
+  );
+}
+
 export default function SignupClient() {
+  return SIGNUP_ENABLED ? <SignupForm /> : <SignupClosed />;
+}
+
+function SignupForm() {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
   const [email, setEmail] = useState('');

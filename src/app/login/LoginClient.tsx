@@ -8,6 +8,7 @@ import Footer from '@/components/Footer';
 import Turnstile, { type TurnstileHandle } from '@/components/Turnstile';
 import { signInUser, requestPasswordReset } from '@/lib/auth';
 import { POST_LOGIN_KEY } from '@/components/AuthGuard';
+import { SIGNUP_ENABLED } from '@/lib/features';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -153,9 +154,11 @@ export default function LoginClient() {
             Sign in
           </button>
 
-          <p className="login-alt">
+          {SIGNUP_ENABLED ? (
+            <p className="login-alt">
             Don&apos;t have an account? <Link href="/signup">Sign Up</Link>
           </p>
+          ) : null}
         </div>
       </div>
 

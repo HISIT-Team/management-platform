@@ -86,3 +86,11 @@ const SCHOOL_SHORT: Record<string, string> = {
   'H-INTERNATIONAL SCHOOL ROSÀ SRL': 'Rosà',
 };
 export const schoolShort = (s: string | null) => (s ? SCHOOL_SHORT[s] ?? s : '—');
+
+/* Deletes one record. Without the delete policy (migration 0006) Supabase
+   silently deletes nothing, so the result is checked. */
+export async function deleteStudentDeviceLog(id: string): Promise<void> {
+  const { data, error } = await getSupabase().from('student_device_log').delete().eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) throw new Error('Record non eliminato: verifica di aver eseguito la migrazione 0006 in Supabase.');
+}

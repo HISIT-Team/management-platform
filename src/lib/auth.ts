@@ -5,6 +5,7 @@
 import type { User } from '@supabase/supabase-js';
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
 import { clearActivity, isIdleExpired, touchActivity } from './idle';
+import { SIGNUP_ENABLED } from './features';
 
 // Where the confirmation / reset links send the user back to.
 // IMPORTANT: add these exact URLs in Supabase →
@@ -39,6 +40,7 @@ export interface SignInArgs {
 
 // ─── REGISTRATION ─────────────────────────────────────────────
 export async function signUpUser({ firstName, lastName, email, password, captchaToken }: SignUpArgs) {
+  if (!SIGNUP_ENABLED) throw new Error('Registration is currently closed.');
   const sb = getSupabase();
   const { data, error } = await sb.auth.signUp({
     email,

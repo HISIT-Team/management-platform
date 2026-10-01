@@ -318,7 +318,7 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
           <div className="logo">{config.headerIcon}</div>
           <div>
             <h1>{config.headerTitle}</h1>
-            <p>{op ?? 'Select operation type'}</p>
+            <p>{op ? `${op} — ${OPTIONS.find((o) => o.value === op)?.sub(config.kind)}` : 'Select operation type'}</p>
           </div>
         </div>
 

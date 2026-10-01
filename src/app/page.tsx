@@ -15,6 +15,7 @@ import {
   signOutUser,
   type Profile,
 } from '@/lib/auth';
+import { SIGNUP_ENABLED } from '@/lib/features';
 
 interface DashCard {
   id: string;
@@ -171,9 +172,11 @@ export default function HomePage() {
             <Link className="btn-login" href="/login">
               Sign in
             </Link>
+            {SIGNUP_ENABLED ? (
             <p className="login-alt">
               Don&apos;t have an account? <Link href="/signup">Sign Up</Link>
             </p>
+          ) : null}
           </div>
         </div>
       ) : (
