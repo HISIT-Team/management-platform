@@ -7,6 +7,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Turnstile, { type TurnstileHandle } from '@/components/Turnstile';
 import { signInUser, requestPasswordReset } from '@/lib/auth';
+import { POST_LOGIN_KEY } from '@/components/AuthGuard';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -40,7 +41,16 @@ export default function LoginClient() {
     setBusy(true);
     try {
       await signInUser({ email: email.trim(), password, captchaToken: token });
-      router.push('/');
+      let next = '';
+      try {
+        next = sessionStorage.getItem(POST_LOGIN_KEY) ?? '';
+        sessionStorage.removeItem(POST_LOGIN_KEY);
+      } catch {
+        /* storage unavailable */
+      }
+      // Only same-site paths ("/x", never "//host" or absolute URLs).
+      if (/^\/(?![/\\])/.test(next) && !next.startsWith('/login')) window.location.assign(next);
+      else router.push('/');
     } catch (e) {
       setError((e as Error).message || 'Incorrect email or password.');
       setBusy(false);

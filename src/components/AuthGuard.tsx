@@ -7,6 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkAccess } from '@/lib/auth';
 
+export const POST_LOGIN_KEY = 'his:postLoginRedirect';
+
 interface AuthGuardProps {
   roles?: string[];
   children: React.ReactNode;
@@ -23,6 +25,13 @@ export default function AuthGuard({ roles, children }: AuthGuardProps) {
       if (res.status === 'ok') {
         setReady(true);
       } else if (res.status === 'unauthenticated') {
+        // Remember the requested page (incl. #fragment, e.g. /qr#…) so login can send the user back.
+        try {
+          const { pathname, search, hash } = window.location;
+          sessionStorage.setItem(POST_LOGIN_KEY, pathname + search + hash);
+        } catch {
+          /* storage unavailable: login falls back to the home page */
+        }
         router.replace('/login');
       } else {
         router.replace('/');
