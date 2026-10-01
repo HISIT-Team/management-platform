@@ -2,7 +2,8 @@
 /* Client-side auth guard for protected pages.
    Mirrors the original HISAuth.requireAuth(): while the session/role check is
    in flight nothing is rendered (no flash of protected content); an
-   unauthenticated user is sent to /login, a wrong-role user back to /. */
+   unauthenticated user is sent to /login, a user whose role requires the
+   second factor (not passed yet) to /mfa, a wrong-role user back to /. */
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkAccess } from '@/lib/auth';
@@ -24,15 +25,15 @@ export default function AuthGuard({ roles, children }: AuthGuardProps) {
       if (!active) return;
       if (res.status === 'ok') {
         setReady(true);
-      } else if (res.status === 'unauthenticated') {
-        // Remember the requested page (incl. #fragment, e.g. /qr#…) so login can send the user back.
+      } else if (res.status === 'unauthenticated' || res.status === 'mfa') {
+        // Remember the requested page (incl. #fragment, e.g. /qr#…) so login / MFA can send the user back.
         try {
           const { pathname, search, hash } = window.location;
           sessionStorage.setItem(POST_LOGIN_KEY, pathname + search + hash);
         } catch {
-          /* storage unavailable: login falls back to the home page */
+          /* storage unavailable: falls back to the home page */
         }
-        router.replace('/login');
+        router.replace(res.status === 'mfa' ? '/mfa' : '/login');
       } else {
         router.replace('/');
       }

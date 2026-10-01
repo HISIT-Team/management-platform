@@ -16,6 +16,7 @@ import {
   type Profile,
 } from '@/lib/auth';
 import { SIGNUP_ENABLED } from '@/lib/features';
+import { mfaStepNeeded } from '@/lib/mfa';
 
 interface DashCard {
   id: string;
@@ -136,6 +137,10 @@ export default function HomePage() {
         }
       }
       if (!active) return;
+      if (await mfaStepNeeded()) {
+        window.location.replace('/mfa');
+        return;
+      }
       const name = profileName(profile, authUser.email ?? '');
       setUser({
         name,

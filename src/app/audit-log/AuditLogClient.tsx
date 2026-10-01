@@ -29,6 +29,8 @@ const ACTION_TONE: Record<string, [string, string]> = {
   user_deleted: ['#A32D2D', '#FBEAEA'],
   device_record_deleted: ['#9A5B00', '#FFF3E4'],
   signatures_purged: ['#2F6E5B', '#E6F2EC'],
+  mfa_policy_changed: ['#5B1220', '#F3E3E6'],
+  mfa_reset: ['#9A5B00', '#FFF3E4'],
 };
 
 const fmt = (iso: string) =>
@@ -52,6 +54,10 @@ function describe(e: AuditEntry): string {
       return `${d.operation === 'Check-out' ? 'Consegna' : 'Restituzione'} del ${d.recorded_at ? fmt(String(d.recorded_at)) : '—'}${
         d.macbook_id ? ' · MacBook ' + d.macbook_id : ''
       }${d.ipad_id ? ' · iPad ' + d.ipad_id : ''}`;
+    case 'mfa_policy_changed':
+      return `MFA ${d.to ? 'obbligatoria' : 'non obbligatoria'} per il ruolo ${role(e.target_label)}`;
+    case 'mfa_reset':
+      return `${str(d.factors_removed)} app di autenticazione rimosse`;
     case 'signatures_purged':
       return `${str(d.records)} firme più vecchie di ${str(d.older_than_months)} mesi`;
     default:

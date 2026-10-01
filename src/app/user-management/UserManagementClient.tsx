@@ -9,7 +9,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getCurrentUser } from '@/lib/auth';
-import { type PlatformUser, ROLES, deleteUser, listUsers, roleMeta, updateUser } from '@/lib/users';
+import { type PlatformUser, ROLES, deleteUser, listUsers, resetUserMfa, roleMeta, updateUser } from '@/lib/users';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const IconUsers = (
@@ -169,6 +169,21 @@ export default function UserManagementClient() {
     setBusy(false);
   };
 
+  const doResetMfa = async () => {
+    if (!edit) return;
+    if (!window.confirm(`Azzerare la MFA di ${edit.user.email}? Al prossimo accesso dovrà configurarla di nuovo.`)) return;
+    setBusy(true);
+    try {
+      const n = await resetUserMfa(edit.user.id);
+      setUsers((prev) => prev.map((u) => (u.id === edit.user.id ? { ...u, mfa_enabled: false } : u)));
+      setEdit({ ...edit, user: { ...edit.user, mfa_enabled: false } });
+      showToast(n ? 'MFA azzerata ✓' : 'Nessuna app di autenticazione da rimuovere');
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setBusy(false);
+  };
+
   const confirmDelete = async () => {
     if (!toDelete) return;
     setBusy(true);
@@ -302,6 +317,7 @@ export default function UserManagementClient() {
                       <th>Utente</th>
                       <th>Email</th>
                       <th>Ruolo</th>
+                      <th>MFA</th>
                       <th>Registrato</th>
                       <th>Ultimo accesso</th>
                       <th />
@@ -324,6 +340,9 @@ export default function UserManagementClient() {
                           </td>
                           <td>
                             <RoleTag role={u.role} />
+                          </td>
+                          <td>
+                            <span className={'um-mfa' + (u.mfa_enabled ? ' on' : '')}>{u.mfa_enabled ? 'Attiva' : '—'}</span>
                           </td>
                           <td className="col-date">{fmtDate(u.created_at)}</td>
                           <td className="col-date">{fmtDateTime(u.last_sign_in_at)}</td>
@@ -409,6 +428,17 @@ export default function UserManagementClient() {
                     <p className="um-hint um-hint--warn">Il Super Admin ha accesso completo, compresa la gestione degli utenti.</p>
                   ) : null}
                 </div>
+                <div className="field um-mfa-field">
+                  <label>Autenticazione a due fattori</label>
+                  <div className="um-mfa-row">
+                    <span className={'um-mfa' + (edit.user.mfa_enabled ? ' on' : '')}>{edit.user.mfa_enabled ? 'Attiva' : 'Non attiva'}</span>
+                    {edit.user.mfa_enabled ? (
+                      <button type="button" className="btn-quiet" onClick={doResetMfa} disabled={busy}>
+                        Azzera MFA (telefono perso)
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
               </div>
               <div className="b-modal-foot">
                 <button className="btn-quiet" onClick={() => setEdit(null)} disabled={busy}>
@@ -482,6 +512,9 @@ export default function UserManagementClient() {
         .um-page .icon-btn.um-edit:hover { background: var(--brand-light); color: var(--brand); }
         .um-page .icon-btn:disabled { opacity: .3; cursor: not-allowed; background: transparent; color: var(--b-faint); }
         .um-page .um-hint { font-size: 12px; color: var(--b-muted); margin-top: 6px; }
+        .um-page .um-mfa { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--b-faint); }
+        .um-page .um-mfa.on { color: #3B6D11; background: #EAF3DE; border-radius: 999px; padding: 3px 9px; }
+        .um-page .um-mfa-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         .um-page .um-hint--warn { color: var(--b-warn); font-weight: 600; }
         .um-page .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .um-page input:disabled { opacity: .7; cursor: not-allowed; }

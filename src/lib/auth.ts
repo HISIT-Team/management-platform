@@ -6,6 +6,7 @@ import type { User } from '@supabase/supabase-js';
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
 import { clearActivity, isIdleExpired, touchActivity } from './idle';
 import { SIGNUP_ENABLED } from './features';
+import { mfaStepNeeded } from './mfa';
 
 // Where the confirmation / reset links send the user back to.
 // IMPORTANT: add these exact URLs in Supabase →
@@ -170,6 +171,7 @@ export function profileName(profile: Profile | null, fallback?: string): string 
 export type AccessResult =
   | { status: 'unauthenticated' }
   | { status: 'forbidden' }
+  | { status: 'mfa' }
   | { status: 'ok'; user: User; profile: Profile | null };
 
 // Guard for protected pages. Used by <AuthGuard>.
@@ -192,6 +194,8 @@ export async function checkAccess(allowedRoles?: string[]): Promise<AccessResult
       (roles.includes('admin') && !superadminOnly);
     if (!ok) return { status: 'forbidden' };
   }
+  // Second factor required for this role and not passed yet → /mfa.
+  if (await mfaStepNeeded()) return { status: 'mfa' };
   return { status: 'ok', user, profile };
 }
 

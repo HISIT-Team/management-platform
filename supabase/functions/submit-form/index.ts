@@ -25,6 +25,7 @@
 // Changes (security audit 2026-10-02):
 //   - 'superadmin' is accepted wherever 'admin' is (it was rejected).
 //   - 'guest' is rejected explicitly, before anything else is looked up.
+//   - roles with mandatory MFA must have passed the second factor (aal2).
 //   - medicine and diet forms removed from the platform (and from here):
 //     delete the WEBHOOK_MEDICINE / WEBHOOK_DIET secrets.
 // ═══════════════════════════════════════════════════════════════════
@@ -100,6 +101,17 @@ async function verifyTurnstile(token: string, ip: string | null): Promise<boolea
   return data.success === true
 }
 
+// Authentication level of the session: 'aal2' once the second factor was passed.
+// (The token itself was already validated by auth.getUser.)
+function sessionAal(jwt: string): string {
+  try {
+    const part = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return String(JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, '='))).aal || 'aal1')
+  } catch {
+    return 'aal1'
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
   if (req.method !== 'POST') return json(req, { error: 'Method not allowed' }, 405)
@@ -147,6 +159,12 @@ Deno.serve(async (req) => {
     if (!role || role === 'guest') return json(req, { error: 'Forbidden: your account has not been enabled yet' }, 403)
     const allowed = conf.roles.includes(role) || ADMIN_ROLES.includes(role)
     if (!allowed) return json(req, { error: 'Forbidden: your role cannot submit this form' }, 403)
+
+    // 5b. Second factor, when the role requires it (Gestione Backend → Sicurezza).
+    const { data: mfaRule } = await admin.from('mfa_role_policy').select('required').eq('role', role).maybeSingle()
+    if (mfaRule?.required && sessionAal(token) !== 'aal2') {
+      return json(req, { error: 'Two-factor authentication required: sign in again with your authenticator code' }, 403)
+    }
 
     // 6. Forward to the hidden webhook, stamping who submitted it (server-side, trustworthy).
     // The _submitted_by_* keys are written AFTER the spread, so a client that

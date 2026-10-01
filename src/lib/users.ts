@@ -15,6 +15,8 @@ export interface PlatformUser {
   last_sign_in_at: string | null;
   email_confirmed_at: string | null;
   has_profile: boolean;
+  /** At least one verified authenticator app (migration 0015). */
+  mfa_enabled?: boolean;
 }
 
 /* Keep in sync with public.platform_roles() in the 0008 migration. */
@@ -71,10 +73,38 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   user_deleted: 'Utente eliminato',
   device_record_deleted: 'Record storico eliminato',
   signatures_purged: 'Firme rimosse (conservazione)',
+  mfa_policy_changed: 'Regola MFA cambiata',
+  mfa_reset: 'MFA azzerata',
 };
 
 export async function listAudit(limit = 1000): Promise<AuditEntry[]> {
   const { data, error } = await getSupabase().rpc('admin_list_audit', { p_limit: limit });
   if (error) throw new Error(error.message);
   return (data ?? []) as AuditEntry[];
+}
+
+/* ── MFA: policy per ruolo e reset (migrazione 0015) ─────────────────── */
+export interface MfaPolicy {
+  role: string;
+  required: boolean;
+  updated_at: string;
+  updated_by: string | null;
+}
+
+export async function listMfaPolicy(): Promise<MfaPolicy[]> {
+  const { data, error } = await getSupabase().from('mfa_role_policy').select('role,required,updated_at,updated_by');
+  if (error) throw new Error(error.message);
+  const order = ROLES.map((r) => r.value);
+  return ((data ?? []) as MfaPolicy[]).sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
+}
+
+export async function setMfaPolicy(role: string, required: boolean): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_set_mfa_policy', { p_role: role, p_required: required });
+  if (error) throw new Error(error.message);
+}
+
+export async function resetUserMfa(id: string): Promise<number> {
+  const { data, error } = await getSupabase().rpc('admin_reset_mfa', { p_id: id });
+  if (error) throw new Error(error.message);
+  return Number(data) || 0;
 }

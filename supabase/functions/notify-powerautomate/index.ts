@@ -5,7 +5,8 @@
 //
 // - The flow URL lives ONLY in the Supabase secret
 //   POWER_AUTOMATE_WEBHOOK_URL — it is never shipped to the browser.
-// - Only signed-in users whose profile role is `it`, `admin` or `superadmin` may call it.
+// - Only signed-in users whose profile role is `it`, `admin` or `superadmin` may call it,
+//   with the second factor passed when their role requires MFA (migration 0015).
 // - Optional secret ALLOWED_ORIGINS (comma-separated, e.g.
 //   "https://your-site.pages.dev,http://localhost:3000") restricts CORS;
 //   if unset any origin is accepted (the JWT + role check still apply).
@@ -94,6 +95,17 @@ function sanitize(b: Record<string, unknown>): Record<string, unknown> | null {
   return out;
 }
 
+// Authentication level of the session: 'aal2' once the second factor was passed.
+// (The token itself was already validated by auth.getUser.)
+function sessionAal(jwt: string): string {
+  try {
+    const part = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return String(JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, '='))).aal || 'aal1');
+  } catch {
+    return 'aal1'
+  }
+}
+
 Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -117,6 +129,10 @@ Deno.serve(async (req) => {
   const { data: profile } = await sb.from('profiles').select('role').eq('id', userData.user.id).maybeSingle();
   const role = String(profile?.role ?? '').trim().toLowerCase();
   if (!ALLOWED_ROLES.includes(role)) return json({ error: 'Forbidden' }, 403, cors);
+  const { data: mfaRule } = await sb.from('mfa_role_policy').select('required').eq('role', role).maybeSingle();
+  if (mfaRule?.required && sessionAal(authHeader.slice(7)) !== 'aal2') {
+    return json({ error: 'Two-factor authentication required' }, 403, cors);
+  }
 
   // ── Body ───────────────────────────────────────────────────────
   const raw = await req.text();

@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
+import { type MfaStatus, getMfaStatus, removeFactor } from '@/lib/mfa';
 import {
   type MyProfile,
   changeMyPassword,
@@ -78,6 +79,8 @@ export default function ProfileClient() {
   const [savingName, setSavingName] = useState(false);
   const [savingAvatar, setSavingAvatar] = useState(false);
 
+  const [mfa, setMfa] = useState<MfaStatus | null>(null);
+  const [mfaBusy, setMfaBusy] = useState(false);
   const [pwd, setPwd] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -98,6 +101,9 @@ export default function ProfileClient() {
 
   useEffect(() => {
     let active = true;
+    getMfaStatus()
+      .then((m) => active && setMfa(m))
+      .catch(() => active && setMfa(null));
     loadMyProfile().then((p) => {
       if (!active) return;
       setMe(p);
@@ -162,6 +168,23 @@ export default function ProfileClient() {
       showToast((e as Error).message, true);
     }
     setSavingAvatar(false);
+  }
+
+  async function dropFactor(id: string) {
+    if (!mfa) return;
+    if (mfa.required && mfa.factors.length <= 1) {
+      showToast('Il tuo ruolo richiede la MFA: aggiungi prima un’altra app, poi rimuovi questa.', true);
+      return;
+    }
+    setMfaBusy(true);
+    try {
+      await removeFactor(id);
+      setMfa({ ...mfa, factors: mfa.factors.filter((f) => f.id !== id) });
+      showToast('App di autenticazione rimossa');
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setMfaBusy(false);
   }
 
   async function savePassword() {
@@ -309,6 +332,53 @@ export default function ProfileClient() {
                 </div>
               </section>
 
+              {/* ── Two-factor authentication ── */}
+              <h2 className="section-label">Autenticazione a due fattori</h2>
+              <section className="hero pf-card">
+                {mfa === null ? (
+                  <p className="pf-mfa-text">Stato non disponibile.</p>
+                ) : (
+                  <>
+                    <div className="pf-mfa-head">
+                      <span className={'pf-mfa-badge' + (mfa.factors.length ? ' on' : '')}>
+                        {mfa.factors.length ? 'Attiva' : 'Non attiva'}
+                      </span>
+                      <p className="pf-mfa-text">
+                        {mfa.required
+                          ? 'Obbligatoria per il tuo ruolo: a ogni accesso ti viene chiesto il codice dell’app.'
+                          : 'Facoltativa per il tuo ruolo, ma consigliata: protegge l’account anche se qualcuno scopre la password.'}
+                      </p>
+                    </div>
+                    {mfa.factors.length ? (
+                      <ul className="pf-mfa-list">
+                        {mfa.factors.map((f) => (
+                          <li key={f.id}>
+                            <span>
+                              {f.friendly_name || 'Authenticator'}
+                              <small> · dal {new Date(f.created_at).toLocaleDateString('it-IT')}</small>
+                            </span>
+                            <button className="btn-quiet" onClick={() => dropFactor(f.id)} disabled={mfaBusy}>
+                              Rimuovi
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <div className="pf-actions">
+                      {mfa.factors.length < 2 ? (
+                        <a className="btn-primary pf-link-btn" href="/mfa?setup=1">
+                          {IconLock}
+                          {mfa.factors.length ? 'Aggiungi un secondo telefono' : 'Attiva la MFA'}
+                        </a>
+                      ) : null}
+                    </div>
+                    {mfa.factors.length === 1 ? (
+                      <p className="pf-mfa-hint">Consiglio: registra anche un secondo telefono, così non resti bloccato se perdi il primo.</p>
+                    ) : null}
+                  </>
+                )}
+              </section>
+
               {/* ── Password ── */}
               <h2 className="section-label">Password</h2>
               <section className="hero pf-card">
@@ -442,6 +512,15 @@ export default function ProfileClient() {
         .pf-page .pf-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; margin-top: .4rem; }
         .pf-page .pf-banner { font-size: 13.5px; font-weight: 600; border-radius: 13px; padding: .75rem 1rem; margin-bottom: 1rem; }
         .pf-page .pf-banner.ok { background: #EAF3DE; color: #3B6D11; }
+        .pf-page .pf-mfa-head { display: flex; gap: 12px; align-items: flex-start; }
+        .pf-page .pf-mfa-badge { flex-shrink: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; background: #FFF3E4; color: var(--b-warn); }
+        .pf-page .pf-mfa-badge.on { background: #EAF3DE; color: #3B6D11; }
+        .pf-page .pf-mfa-text { font-size: 13.5px; color: var(--b-muted); line-height: 1.5; }
+        .pf-page .pf-mfa-list { list-style: none; margin: 1rem 0 .4rem; padding: 0; }
+        .pf-page .pf-mfa-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: .6rem 0; border-top: 1px solid var(--b-line); font-size: 14px; font-weight: 600; }
+        .pf-page .pf-mfa-list small { font-weight: 500; color: var(--b-muted); }
+        .pf-page .pf-mfa-hint { font-size: 12.5px; color: var(--b-muted); margin-top: .6rem; }
+        .pf-page .pf-link-btn { text-decoration: none; }
         .pf-page .pf-modal-text { font-size: 13.5px; color: var(--b-muted); line-height: 1.5; margin-bottom: 1rem; }
         @media (max-width: 560px) {
           .pf-page .pf-row2 { grid-template-columns: 1fr; }
