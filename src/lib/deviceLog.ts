@@ -47,3 +47,42 @@ export async function logStudentDevice(entry: StudentDeviceLogEntry): Promise<vo
   const { error } = await getSupabase().from('student_device_log').insert(entry);
   if (error) throw new Error(error.message);
 }
+
+/* ── Read side (dashboard /device-history) ─────────────────────────── */
+
+export interface StudentDeviceLogRow {
+  id: string;
+  created_at: string;
+  operation: 'Check-in' | 'Check-out';
+  student_email: string;
+  school: string | null;
+  macbook_id: string | null;
+  ipad_id: string | null;
+  signed_by: string | null;
+}
+
+/* Loads the whole history, newest first, WITHOUT the signature column.
+   Supabase caps a single response at 1000 rows, so it pages. */
+export async function listStudentDeviceLog(): Promise<StudentDeviceLogRow[]> {
+  const sb = getSupabase();
+  const PAGE = 1000;
+  const out: StudentDeviceLogRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await sb
+      .from('student_device_log')
+      .select('id, created_at, operation, student_email, school, macbook_id, ipad_id, signed_by')
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    out.push(...((data ?? []) as StudentDeviceLogRow[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
+const SCHOOL_SHORT: Record<string, string> = {
+  'H-INTERNATIONAL SCHOOL SRL': 'Venezia',
+  'H-INTERNATIONAL SCHOOL VICENZA SRL': 'Vicenza',
+  'H-INTERNATIONAL SCHOOL ROSÀ SRL': 'Rosà',
+};
+export const schoolShort = (s: string | null) => (s ? SCHOOL_SHORT[s] ?? s : '—');
