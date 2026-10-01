@@ -1,0 +1,50 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "📋 Nuova task assegnata",
+      "size": "Small",
+      "weight": "Bolder",
+      "color": "Accent"
+    },
+    {
+      "type": "TextBlock",
+      "text": "@{triggerBody()?['task']?['title_card']}",
+      "size": "Large",
+      "weight": "Bolder",
+      "wrap": true,
+      "spacing": "Small"
+    },
+    {
+      "type": "TextBlock",
+      "text": "Ciao @{items('Apply_to_each')?['name_card']}, @{triggerBody()?['assigned_by_card']} ti ha assegnato questa task.",
+      "wrap": true
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "Priorità", "value": "@{triggerBody()?['task']?['priority_label']}" },
+        { "title": "Scadenza", "value": "@{if(empty(triggerBody()?['task']?['due_date']), '—', triggerBody()?['task']?['due_date'])}" },
+        { "title": "Gruppo", "value": "@{triggerBody()?['task']?['group']}" },
+        { "title": "Stato", "value": "@{triggerBody()?['task']?['status_label']}" }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "@{triggerBody()?['task']?['description_card']}",
+      "wrap": true,
+      "isSubtle": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Apri task",
+      "url": "@{triggerBody()?['task']?['url']}"
+    }
+  ]
+}

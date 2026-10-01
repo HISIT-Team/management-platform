@@ -5,7 +5,7 @@
    task un pannello di dettaglio con le sotto-task.
    Tutto persistito in Supabase (vedi src/lib/tasks.ts e la migrazione
    supabase/migrations/0005_task_manager.sql). */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
@@ -627,6 +627,21 @@ export default function TaskManagerClient() {
     setSubAssignee('');
     setModal({ mode: 'edit', id: t.id });
   }, []);
+
+  // Link diretto a una task (es. dalla notifica Teams): /task-manager?task=<id>
+  const deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (loading || deepLinkDone.current) return;
+    const id = new URLSearchParams(window.location.search).get('task');
+    if (!id) return;
+    deepLinkDone.current = true;
+    window.history.replaceState(null, '', '/task-manager');
+    const t = tasks.find((x) => x.id === id);
+    window.setTimeout(() => {
+      if (t) openEdit(t);
+      else showToast('La task del link non esiste più o è stata eliminata.', true);
+    }, 0);
+  }, [loading, tasks, openEdit, showToast]);
 
   const current = modal?.mode === 'edit' ? tasks.find((t) => t.id === modal.id) ?? null : null;
 

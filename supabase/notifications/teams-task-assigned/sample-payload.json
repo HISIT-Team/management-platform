@@ -1,0 +1,23 @@
+{
+  "event": "task_assigned",
+  "assigned_by": "Alberto Dalle Carbonare",
+  "assigned_by_card": "Alberto Dalle Carbonare",
+  "recipients": [
+    { "name": "Valentina Corradi", "name_card": "Valentina Corradi", "email": "v.corradi@h-farmschool.com" },
+    { "name": "Elvis Kavazovic", "name_card": "Elvis Kavazovic", "email": "e.kavazovic@h-farmschool.com" }
+  ],
+  "task": {
+    "id": "0322dcf6-2d6e-4bec-ac7a-bf35e1dab754",
+    "title": "Sostituire \"schermo\" iPad",
+    "title_card": "Sostituire \\\"schermo\\\" iPad",
+    "description": "Ordinare il ricambio e programmare la sostituzione",
+    "description_card": "Ordinare il ricambio e programmare la sostituzione",
+    "priority": "high",
+    "priority_label": "Alta",
+    "status_label": "Da fare",
+    "group": "Device",
+    "start_date": "",
+    "due_date": "15/10/2026",
+    "url": "https://example.pages.dev/task-manager?task=0322dcf6-2d6e-4bec-ac7a-bf35e1dab754"
+  }
+}
