@@ -203,7 +203,6 @@ export const HUBS: Record<string, HubConfig> = {
     footer: FOOTER.boarding,
     cards: [
       { icon: I.house, name: 'Room Assignment', desc: 'Assign students to rooms', href: '/room-assignment-hub' },
-      { icon: I.shieldPlus, name: 'Request for Medicines', desc: 'Medicine requests and consent registry', href: '/request-medicines-hub' },
       { icon: I.video, name: 'Cameras', desc: 'Live surveillance feed', href: 'https://vision.meraki.com/login', external: true },
     ],
   },
@@ -252,18 +251,7 @@ export const HUBS: Record<string, HubConfig> = {
     ],
   },
 
-  'parents-hub': {
-    roles: ['parent', 'admin'],
-    topbar: { label: 'Home', href: '/', variant: 'home' },
-    titlePre: 'Parents ',
-    titleSpan: 'Area',
-    subtitle: 'Forms and requests for parents and guardians',
-    footer: FOOTER.parents,
-    cards: [
-      { icon: I.link, name: 'Medicine Consent Form', desc: 'Authorise medicine administration during boarding', href: '/form-richiesta' },
-      { icon: I.diet, name: 'Special Diet Request', desc: 'Request a special or medical menu for a student', href: '/special-diet-request' },
-    ],
-  },
+
 
   'room-assignment-hub': {
     roles: ['boarding', 'admin'],
@@ -280,17 +268,7 @@ export const HUBS: Record<string, HubConfig> = {
     ],
   },
 
-  'request-medicines-hub': {
-    roles: ['boarding', 'admin'],
-    topbar: { label: 'Boarding', href: '/boarding', variant: 'back' },
-    titlePre: 'Request for ',
-    titleSpan: 'Medicines',
-    subtitle: 'Submit medicine requests or browse the consent registry',
-    footer: FOOTER.boarding,
-    cards: [
-      { icon: I.userCheck, name: 'Consent Registry', desc: 'Access the consent registry', href: '#' },
-    ],
-  },
+
 
   'it-registries-hub': {
     roles: ['it', 'admin'],

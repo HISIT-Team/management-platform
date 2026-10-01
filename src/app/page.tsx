@@ -85,20 +85,6 @@ const ALL_CARDS: DashCard[] = [
     desc: 'Student forms & requests',
   },
   {
-    id: 'parents',
-    roles: ['parent', 'admin'],
-    href: '/parents-hub',
-    icon: (
-      <svg viewBox="0 0 24 24">
-        <circle cx="8" cy="7.5" r="3.2" />
-        <path d="M2.5 20v-1.4A4.6 4.6 0 0 1 7.1 14h1.8a4.6 4.6 0 0 1 4.1 2.5" />
-        <path d="M18 11.4c1.1-1.3 3.4-.6 3.4 1.1 0 1.6-2 2.9-3.4 4.3-1.4-1.4-3.4-2.7-3.4-4.3 0-1.7 2.3-2.4 3.4-1.1z" />
-      </svg>
-    ),
-    name: 'Parents',
-    desc: 'Medicine consent & parent forms',
-  },
-  {
     id: 'backend',
     roles: ['superadmin'],
     href: '/backend',
