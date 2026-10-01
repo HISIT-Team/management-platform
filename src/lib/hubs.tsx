@@ -12,10 +12,19 @@ const FOOTER = {
   hr: 'H-FARM International School · HR Management',
   office: 'H-FARM International School · Student Office',
   parents: 'H-FARM International School · Parents Area',
+  backend: 'H-FARM International School · Gestione Backend',
 };
 
 // ── Icons (viewBox 0 0 24 24), matching the original inline SVGs ──
 const I = {
+  usersCog: (
+    <svg viewBox="0 0 24 24">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
   house: (
     <svg viewBox="0 0 24 24">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -172,6 +181,18 @@ const ROOM_PHOTOS_HISTORY =
   'https://naeeuro.sharepoint.com/sites/BoardingCameraAssignements/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FBoardingCameraAssignements%2FShared%20Documents%2FApps%2FMicrosoft%20Forms%2FBoarding%20Camera%20Assignements%2FQuestion&viewid=0f0d5dca%2D9b97%2D4f2c%2Db67a%2D4c898e3a526e&FolderCTID=0x012000278BBD1D512ACE448DC7BCC3BD138882';
 
 export const HUBS: Record<string, HubConfig> = {
+  backend: {
+    roles: ['superadmin'],
+    topbar: { label: 'Home', href: '/', variant: 'home' },
+    titlePre: 'Gestione ',
+    titleSpan: 'Backend',
+    subtitle: 'Amministrazione completa della piattaforma',
+    footer: FOOTER.backend,
+    cards: [
+      { icon: I.usersCog, name: 'Gestione Utenti', desc: 'Utenti, ruoli e dati dei profili', href: '/user-management' },
+    ],
+  },
+
   boarding: {
     roles: ['boarding', 'admin'],
     topbar: { label: 'Home', href: '/', variant: 'home' },

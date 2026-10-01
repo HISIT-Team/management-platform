@@ -5,7 +5,7 @@
 //
 // - The flow URL lives ONLY in the Supabase secret
 //   POWER_AUTOMATE_WEBHOOK_URL — it is never shipped to the browser.
-// - Only signed-in users whose profile role is `it` or `admin` may call it.
+// - Only signed-in users whose profile role is `it`, `admin` or `superadmin` may call it.
 // - Optional secret ALLOWED_ORIGINS (comma-separated, e.g.
 //   "https://your-site.pages.dev,http://localhost:3000") restricts CORS;
 //   if unset any origin is accepted (the JWT + role check still apply).
@@ -17,7 +17,7 @@
 // ═══════════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const ALLOWED_ROLES = ['it', 'admin'];
+const ALLOWED_ROLES = ['it', 'admin', 'superadmin'];
 const MAX_BODY_BYTES = 30 * 1024 * 1024; // photos included; Power Automate accepts up to 100 MB
 
 function corsHeaders(origin: string | null): Record<string, string> {

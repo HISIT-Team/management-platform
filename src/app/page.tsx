@@ -98,6 +98,20 @@ const ALL_CARDS: DashCard[] = [
     name: 'Parents',
     desc: 'Medicine consent & parent forms',
   },
+  {
+    id: 'backend',
+    roles: ['superadmin'],
+    href: '/backend',
+    icon: (
+      <svg viewBox="0 0 24 24">
+        <ellipse cx="12" cy="5" rx="8" ry="3" />
+        <path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+        <path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6" />
+      </svg>
+    ),
+    name: 'Gestione Backend',
+    desc: 'Utenti, ruoli e impostazioni della piattaforma',
+  },
 ];
 
 const arrow = (
@@ -146,9 +160,18 @@ export default function HomePage() {
   }, []);
 
   const visible = useMemo(
-    () => (user ? ALL_CARDS.filter((c) => c.roles.some((r) => user.roles.includes(r))) : []),
+    () =>
+      user
+        ? ALL_CARDS.filter((c) => user.roles.includes('superadmin') || c.roles.some((r) => user.roles.includes(r)))
+        : [],
     [user],
   );
+
+  // Guests (new sign-ups) and accounts without any section get their own home.
+  const isGuest = !!user && (user.roles.includes('guest') || visible.length === 0);
+  useEffect(() => {
+    if (isGuest) window.location.replace('/guest');
+  }, [isGuest]);
 
   async function doLogout() {
     try {
@@ -163,7 +186,7 @@ export default function HomePage() {
     <div className="page">
       <Header titlePre="Management " titleSpan="Platform" />
 
-      {loading ? null : !user ? (
+      {loading || isGuest ? null : !user ? (
         /* ── ENTRY (Sign in / Sign up) ── */
         <div id="entry-screen">
           <div className="login-card">

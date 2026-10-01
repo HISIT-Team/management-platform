@@ -1,0 +1,33 @@
+<!-- Power Automate → "Send an email (V2)" → Body: switch to code view (</>) and paste.
+     The @{...} parts are Power Automate expressions. -->
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F3F2;padding:24px 0;font-family:Segoe UI,Helvetica,Arial,sans-serif;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#FFFFFF;border-radius:14px;overflow:hidden;border:1px solid #EFE6E7;">
+      <tr><td style="background:#8B1A2B;padding:22px 28px;color:#FFFFFF;">
+        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.85;">H-FARM International School · IT</div>
+        <div style="font-size:22px;font-weight:700;margin-top:4px;">Device @{if(equals(triggerBody()?['operation'],'Check-out'),'delivery','return')} confirmation</div>
+      </td></tr>
+      <tr><td style="padding:24px 28px 8px;font-size:15px;color:#1C1418;line-height:1.5;">
+        Dear @{triggerBody()?['first_name']} @{triggerBody()?['last_name']},<br><br>
+        @{if(equals(triggerBody()?['operation'],'Check-out'),'this email confirms that the following school devices have been delivered to you.','this email confirms that the following school devices have been returned to the IT department.')}
+      </td></tr>
+      <tr><td style="padding:8px 28px 4px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1C1418;border-collapse:collapse;">
+          <tr><td style="padding:9px 0;color:#6E6468;width:42%;border-bottom:1px solid #F0E7E8;">Operation</td><td style="padding:9px 0;font-weight:600;border-bottom:1px solid #F0E7E8;">@{if(equals(triggerBody()?['operation'],'Check-out'),'Delivery (Check-out)','Return (Check-in)')}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">Date</td><td style="padding:9px 0;font-weight:600;border-bottom:1px solid #F0E7E8;">@{formatDateTime(convertFromUtc(triggerBody()?['timestamp'],'W. Europe Standard Time'),'dd/MM/yyyy HH:mm')}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">Email</td><td style="padding:9px 0;font-weight:600;border-bottom:1px solid #F0E7E8;">@{triggerBody()?['email']}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">School</td><td style="padding:9px 0;font-weight:600;border-bottom:1px solid #F0E7E8;">@{triggerBody()?['school_or_company']}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">Devices</td><td style="padding:9px 0;font-weight:600;border-bottom:1px solid #F0E7E8;">@{join(triggerBody()?['devices'],', ')}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">MacBook ID</td><td style="padding:9px 0;font-weight:600;font-family:Consolas,Menlo,monospace;border-bottom:1px solid #F0E7E8;">@{if(empty(triggerBody()?['macbook_id']),'—',triggerBody()?['macbook_id'])}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">iPad ID</td><td style="padding:9px 0;font-weight:600;font-family:Consolas,Menlo,monospace;border-bottom:1px solid #F0E7E8;">@{if(empty(triggerBody()?['ipad_id']),'—',triggerBody()?['ipad_id'])}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;border-bottom:1px solid #F0E7E8;">Accessories ID</td><td style="padding:9px 0;font-weight:600;font-family:Consolas,Menlo,monospace;border-bottom:1px solid #F0E7E8;">@{if(empty(triggerBody()?['accessories_id']),'—',triggerBody()?['accessories_id'])}</td></tr>
+          <tr><td style="padding:9px 0;color:#6E6468;">Signed by</td><td style="padding:9px 0;font-weight:600;">@{triggerBody()?['signed_by']} — signature attached (firma.jpg)</td></tr>
+        </table>
+      </td></tr>
+      <tr><td style="padding:18px 28px 26px;font-size:13px;color:#6E6468;line-height:1.5;">
+        If any of these details are incorrect, please reply to this email or contact the IT department.<br><br>
+        IT Department · H-FARM International School
+      </td></tr>
+    </table>
+  </td></tr>
+</table>

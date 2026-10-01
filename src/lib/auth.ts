@@ -184,7 +184,12 @@ export async function checkAccess(allowedRoles?: string[]): Promise<AccessResult
   }
   if (allowedRoles && allowedRoles.length) {
     const roles = profileRoles(profile);
-    const ok = roles.some((r) => allowedRoles.includes(r)) || roles.includes('admin');
+    // superadmin: everywhere. admin: everywhere except superadmin-only pages.
+    const superadminOnly = allowedRoles.every((r) => r === 'superadmin');
+    const ok =
+      roles.includes('superadmin') ||
+      roles.some((r) => allowedRoles.includes(r)) ||
+      (roles.includes('admin') && !superadminOnly);
     if (!ok) return { status: 'forbidden' };
   }
   return { status: 'ok', user, profile };

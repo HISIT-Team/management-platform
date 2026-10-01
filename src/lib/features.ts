@@ -1,8 +1,8 @@
 /* Feature switches. Change and redeploy to toggle. */
 
-/** Public self-registration (/signup). New accounts used to get the
-    "parent" role automatically. Turned off: accounts are created by an
-    admin. IMPORTANT: also turn off Supabase → Authentication → Sign In /
-    Providers → "Allow new users to sign up", otherwise the Supabase API
-    still accepts sign-ups that bypass this page. */
-export const SIGNUP_ENABLED = false;
+/** Public self-registration (/signup). New accounts get the `guest` role
+    (enforced in Supabase by supabase/migrations/0007_guest_default_role.sql)
+    and land on /guest until an admin assigns a real role.
+    If you turn this off, also turn off Supabase → Authentication →
+    Sign In / Providers → "Allow new users to sign up". */
+export const SIGNUP_ENABLED = true;

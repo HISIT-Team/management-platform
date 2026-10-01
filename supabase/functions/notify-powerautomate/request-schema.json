@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "properties": {
+    "form_type": { "type": "string" },
+    "operation": { "type": "string" },
+    "operation_label": { "type": "string" },
+    "type": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "first_name": { "type": "string" },
+    "last_name": { "type": "string" },
+    "email": { "type": "string" },
+    "school_or_company": { "type": "string" },
+    "parent_email_1": { "type": "string" },
+    "parent_email_2": { "type": "string" },
+    "devices": { "type": "array", "items": { "type": "string" } },
+    "macbook_id": { "type": "string" },
+    "ipad_id": { "type": "string" },
+    "accessories_id": { "type": "string" },
+    "device_details": { "type": "object" },
+    "signed_by": { "type": "string" },
+    "signature_data_url": { "type": "string" },
+    "signature_base64": { "type": "string" },
+    "signature_mime": { "type": "string" },
+    "photos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "category": { "type": "string" },
+          "device": { "type": "string" },
+          "mime": { "type": "string" },
+          "base64": { "type": "string" }
+        }
+      }
+    },
+    "submitted_by": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": ["string", "null"] },
+        "role": { "type": "string" }
+      }
+    },
+    "received_at": { "type": "string" }
+  }
+}
