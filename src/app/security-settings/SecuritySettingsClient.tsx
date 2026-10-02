@@ -52,14 +52,23 @@ export default function SecuritySettingsClient() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([listMfaPolicy(), listUsers(), getMfaStatus()])
-      .then(([p, u, m]) => {
+    // The user's own MFA status is loaded on its own, so an error in the
+    // settings (e.g. a migration not run yet) never shows a false "activate MFA".
+    getMfaStatus()
+      .then((m) => {
+        if (!active) return;
+        setMyAal2(m.aal2 || m.trusted);
+        setMyFactors(m.factors.length);
+        setRememberHoursState(m.rememberHours);
+      })
+      .catch(() => {
+        /* status unknown */
+      });
+    Promise.all([listMfaPolicy(), listUsers()])
+      .then(([p, u]) => {
         if (!active) return;
         setPolicy(p);
         setUsers(u);
-        setMyAal2(m.aal2 || m.trusted);
-        setRememberHoursState(m.rememberHours);
-        setMyFactors(m.factors.length);
       })
       .catch((e: Error) => active && setError(e.message))
       .finally(() => active && setLoading(false));
@@ -146,7 +155,7 @@ export default function SecuritySettingsClient() {
             </div>
           ) : null}
 
-          {!loading && !myAal2 ? (
+          {!loading && !error && !myAal2 ? (
             <div className="sec-lock">
               <b>Prima attiva la tua MFA.</b>{' '}
               {myFactors
