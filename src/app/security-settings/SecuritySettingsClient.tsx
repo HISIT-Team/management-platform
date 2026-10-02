@@ -1,14 +1,32 @@
 'use client';
 /* Gestione Backend → Sicurezza (superadmin only).
    Choose for which roles the second factor (authenticator app) is
-   mandatory. Enforced at login (/mfa), in the database and in the Edge
-   Functions — see migration 0015. Changes are written to audit_log. */
+   mandatory, how long "Ricorda questo dispositivo" lasts, and the
+   inactivity timeout of each role. MFA is enforced at login (/mfa), in the
+   database and in the Edge Functions — see migrations 0015/0016. Every
+   change is written to audit_log. */
 import React, { useEffect, useMemo, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getMfaStatus } from '@/lib/mfa';
-import { type MfaPolicy, type PlatformUser, listMfaPolicy, listUsers, roleMeta, setMfaPolicy } from '@/lib/users';
+import {
+  type MfaPolicy,
+  type PlatformUser,
+  listMfaPolicy,
+  listUsers,
+  roleMeta,
+  setIdleTimeout,
+  setMfaPolicy,
+  setRememberHours,
+} from '@/lib/users';
+
+const IDLE_OPTIONS = [5, 10, 15, 30, 45, 60, 90, 120, 240, 480, 720, 1440];
+const REMEMBER_OPTIONS = [0, 1, 4, 8, 12, 24, 48, 72, 168];
+
+const fmtMinutes = (m: number) =>
+  m < 60 ? `${m} min` : m % 60 === 0 ? (m === 60 ? '1 ora' : `${m / 60} ore`) : `${Math.floor(m / 60)} h ${m % 60} min`;
+const fmtHours = (h: number) => (h === 0 ? 'Disattivato' : h === 1 ? '1 ora' : h % 24 === 0 ? (h === 24 ? '24 ore (1 giorno)' : `${h / 24} giorni`) : `${h} ore`);
 
 const IconShield = (
   <svg viewBox="0 0 24 24">
@@ -25,6 +43,8 @@ export default function SecuritySettingsClient() {
   const [policy, setPolicy] = useState<MfaPolicy[]>([]);
   const [users, setUsers] = useState<PlatformUser[]>([]);
   const [myAal2, setMyAal2] = useState(false);
+  const [rememberHours, setRememberHoursState] = useState(24);
+  const [busyRemember, setBusyRemember] = useState(false);
   const [myFactors, setMyFactors] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,7 +57,8 @@ export default function SecuritySettingsClient() {
         if (!active) return;
         setPolicy(p);
         setUsers(u);
-        setMyAal2(m.aal2);
+        setMyAal2(m.aal2 || m.trusted);
+        setRememberHoursState(m.rememberHours);
         setMyFactors(m.factors.length);
       })
       .catch((e: Error) => active && setError(e.message))
@@ -75,6 +96,30 @@ export default function SecuritySettingsClient() {
     setBusyRole('');
   }
 
+  async function changeIdle(p: MfaPolicy, minutes: number) {
+    setBusyRole(p.role);
+    try {
+      await setIdleTimeout(p.role, minutes);
+      setPolicy((prev) => prev.map((x) => (x.role === p.role ? { ...x, idle_minutes: minutes, updated_at: new Date().toISOString() } : x)));
+      showToast(`Timeout ${roleMeta(p.role).label}: ${fmtMinutes(minutes)} ✓`);
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setBusyRole('');
+  }
+
+  async function changeRemember(hours: number) {
+    setBusyRemember(true);
+    try {
+      await setRememberHours(hours);
+      setRememberHoursState(hours);
+      showToast(hours ? `Ricorda dispositivo: ${fmtHours(hours)} ✓` : 'Ricorda dispositivo disattivato: il codice sarà chiesto a ogni accesso');
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setBusyRemember(false);
+  }
+
   return (
     <AuthGuard roles={['superadmin']}>
       <Topbar label="Gestione Backend" href="/backend" variant="back" />
@@ -88,7 +133,7 @@ export default function SecuritySettingsClient() {
                 <h1>
                   <em>Sicurezza</em>
                 </h1>
-                <p>Per quali ruoli l&apos;autenticazione a due fattori è obbligatoria</p>
+                <p>Autenticazione a due fattori e timeout di inattività per ruolo</p>
               </div>
             </div>
           </div>
@@ -97,7 +142,7 @@ export default function SecuritySettingsClient() {
             <div className="setup-note">
               <b>Impostazioni non raggiungibili.</b> {error}
               <br />
-              Verifica di aver eseguito <code>supabase/migrations/0015_mfa_by_role.sql</code> nel SQL Editor.
+              Verifica di aver eseguito <code>0015_mfa_by_role.sql</code> e <code>0016_sessions_trusted_devices_admin_sections.sql</code> nel SQL Editor.
             </div>
           ) : null}
 
@@ -126,6 +171,7 @@ export default function SecuritySettingsClient() {
                     <th>Ruolo</th>
                     <th>Utenti con MFA</th>
                     <th>MFA obbligatoria</th>
+                    <th>Timeout inattività</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -160,6 +206,23 @@ export default function SecuritySettingsClient() {
                             <i />
                           </button>
                         </td>
+                        <td>
+                          <select
+                            className="sec-select"
+                            aria-label={`Timeout inattività per ${m.label}`}
+                            value={p.idle_minutes}
+                            disabled={busyRole === p.role}
+                            onChange={(e) => changeIdle(p, Number(e.target.value))}
+                          >
+                            {(IDLE_OPTIONS.includes(p.idle_minutes) ? IDLE_OPTIONS : [...IDLE_OPTIONS, p.idle_minutes].sort((a, b) => a - b)).map(
+                              (o) => (
+                                <option key={o} value={o}>
+                                  {fmtMinutes(o)}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </td>
                       </tr>
                     );
                   })}
@@ -168,7 +231,38 @@ export default function SecuritySettingsClient() {
             </div>
           )}
 
+          {!loading && !error ? (
+            <div className="sec-card">
+              <div>
+                <b>Ricorda questo dispositivo</b>
+                <p>
+                  Dopo il codice dell&apos;app, l&apos;utente può spuntare &laquo;Ricorda questo dispositivo&raquo;: su quel browser il
+                  codice non viene richiesto per questo periodo (la password sì, a ogni accesso). Riducendo il periodo si accorciano
+                  subito anche i dispositivi già ricordati; &laquo;Disattivato&raquo; li annulla tutti.
+                </p>
+              </div>
+              <select
+                className="sec-select"
+                aria-label="Durata ricorda dispositivo"
+                value={rememberHours}
+                disabled={!myAal2 || busyRemember}
+                onChange={(e) => changeRemember(Number(e.target.value))}
+              >
+                {(REMEMBER_OPTIONS.includes(rememberHours) ? REMEMBER_OPTIONS : [...REMEMBER_OPTIONS, rememberHours].sort((a, b) => a - b)).map(
+                  (o) => (
+                    <option key={o} value={o}>
+                      {fmtHours(o)}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          ) : null}
+
           <p className="sec-note">
+            Timeout di inattività: dopo quel tempo senza attività (anche a browser chiuso) l&apos;utente viene disconnesso; vale
+            dal prossimo controllo, entro 10 minuti.
+            <br />
             Consigliato: obbligatoria per Super Admin, Admin, IT e HR. Chi ha un ruolo con MFA obbligatoria e non l&apos;ha
             ancora attivata la configura al primo accesso successivo. Se qualcuno perde il telefono, azzera la sua MFA da
             Gestione Utenti. Ogni modifica finisce nel Registro attività.
@@ -193,6 +287,11 @@ export default function SecuritySettingsClient() {
         .sec-page .sec-switch.on i { transform: translateX(18px); }
         .sec-page .sec-switch:disabled { opacity: .45; cursor: not-allowed; }
         .sec-page .sec-switch:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+        .sec-page .sec-select { padding: 7px 10px; border-radius: 10px; border: 1.5px solid var(--b-line); font-family: inherit; font-size: 13.5px; background: #fff; color: var(--ink); }
+        .sec-page .sec-select:disabled { opacity: .5; }
+        .sec-page .sec-card { display: flex; gap: 1rem; align-items: center; justify-content: space-between; background: #fff; border: 1px solid var(--b-line); border-radius: 16px; padding: 1rem 1.2rem; margin-top: 1rem; }
+        .sec-page .sec-card p { font-size: 13px; color: var(--b-muted); line-height: 1.5; margin-top: 4px; }
+        @media (max-width: 640px) { .sec-page .sec-card { flex-direction: column; align-items: stretch; } }
         .sec-page .sec-note { font-size: 13px; color: var(--b-muted); line-height: 1.55; margin-top: 1rem; }
       `}</style>
     </AuthGuard>

@@ -74,7 +74,7 @@ function corsHeaders(req: Request): Record<string, string> {
     else allow = origin
   }
   const h: Record<string, string> = {
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-mfa-device',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
   }
@@ -161,8 +161,22 @@ Deno.serve(async (req) => {
     if (!allowed) return json(req, { error: 'Forbidden: your role cannot submit this form' }, 403)
 
     // 5b. Second factor, when the role requires it (Gestione Backend → Sicurezza).
-    const { data: mfaRule } = await admin.from('mfa_role_policy').select('required').eq('role', role).maybeSingle()
-    if (mfaRule?.required && sessionAal(token) !== 'aal2') {
+    //     mfa_ok() (migration 0016) runs as the user: aal2, remembered device
+    //     (x-mfa-device header) or not required. Before 0016: aal2 only.
+    const mfaDevice = (req.headers.get('x-mfa-device') || '').slice(0, 200)
+    const asUser = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') || SERVICE_ROLE_KEY, {
+      global: { headers: { Authorization: 'Bearer ' + token, ...(mfaDevice ? { 'x-mfa-device': mfaDevice } : {}) } },
+      auth: { persistSession: false },
+    })
+    const mfaRes = await asUser.rpc('mfa_ok')
+    let mfaPassed: boolean
+    if (!mfaRes.error) {
+      mfaPassed = mfaRes.data === true
+    } else {
+      const { data: mfaRule } = await admin.from('mfa_role_policy').select('required').eq('role', role).maybeSingle()
+      mfaPassed = !mfaRule?.required || sessionAal(token) === 'aal2'
+    }
+    if (!mfaPassed) {
       return json(req, { error: 'Two-factor authentication required: sign in again with your authenticator code' }, 403)
     }
 

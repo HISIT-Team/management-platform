@@ -29,7 +29,7 @@ function corsHeaders(origin: string | null): Record<string, string> {
   const allow = allowed.length === 0 ? '*' : origin && allowed.includes(origin) ? origin : allowed[0];
   return {
     'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-mfa-device',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     Vary: 'Origin',
   };
@@ -106,6 +106,16 @@ function sessionAal(jwt: string): string {
   }
 }
 
+// mfa_ok() in the database (0016) decides: aal2, remembered device or not
+// required. Before 0016 is run, fall back to the 0015 rule (aal2 only).
+// deno-lint-ignore no-explicit-any
+async function mfaOk(sb: any, role: string, jwt: string): Promise<boolean> {
+  const { data, error } = await sb.rpc('mfa_ok');
+  if (!error) return data === true;
+  const { data: rule } = await sb.from('mfa_role_policy').select('required').eq('role', role).maybeSingle();
+  return !rule?.required || sessionAal(jwt) === 'aal2';
+}
+
 Deno.serve(async (req) => {
   const cors = corsHeaders(req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -119,9 +129,11 @@ Deno.serve(async (req) => {
   if (!authHeader.startsWith('Bearer ')) return json({ error: 'Not signed in' }, 401, cors);
   // Injected automatically by Supabase. Falls back to the service-role key on
   // projects that no longer expose the legacy anon key to functions.
+  const mfaDevice = (req.headers.get('x-mfa-device') ?? '').slice(0, 200);
   const apiKey = Deno.env.get('SUPABASE_ANON_KEY') || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const sb = createClient(Deno.env.get('SUPABASE_URL')!, apiKey, {
-    global: { headers: { Authorization: authHeader } },
+    // x-mfa-device: "remembered device" token, checked by mfa_ok() (migration 0016).
+    global: { headers: { Authorization: authHeader, ...(mfaDevice ? { 'x-mfa-device': mfaDevice } : {}) } },
     auth: { persistSession: false },
   });
   const { data: userData, error: userErr } = await sb.auth.getUser(authHeader.slice(7));
@@ -129,8 +141,8 @@ Deno.serve(async (req) => {
   const { data: profile } = await sb.from('profiles').select('role').eq('id', userData.user.id).maybeSingle();
   const role = String(profile?.role ?? '').trim().toLowerCase();
   if (!ALLOWED_ROLES.includes(role)) return json({ error: 'Forbidden' }, 403, cors);
-  const { data: mfaRule } = await sb.from('mfa_role_policy').select('required').eq('role', role).maybeSingle();
-  if (mfaRule?.required && sessionAal(authHeader.slice(7)) !== 'aal2') {
+  // Second factor: aal2 session, remembered device, or not required for the role.
+  if (!(await mfaOk(sb, role, authHeader.slice(7)))) {
     return json({ error: 'Two-factor authentication required' }, 403, cors);
   }
 

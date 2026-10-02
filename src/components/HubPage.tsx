@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Header from './Header';
 import Footer from './Footer';
 import Topbar from './Topbar';
-import AuthGuard from './AuthGuard';
+import AuthGuard, { RoleOnly } from './AuthGuard';
 
 export interface HubCard {
   icon: React.ReactNode;
@@ -15,6 +15,8 @@ export interface HubCard {
   href: string;
   external?: boolean;
   badge?: { text: string; soon?: boolean };
+  /** Only these roles see the card (superadmin always). Omit: everyone allowed in the hub. */
+  roles?: string[];
 }
 
 export interface HubConfig {
@@ -72,9 +74,15 @@ export default function HubPage({ config }: { config: HubConfig }) {
       <div className="page">
         <Header titlePre={config.titlePre} titleSpan={config.titleSpan} subtitle={config.subtitle} />
         <main className="cards">
-          {config.cards.map((card, i) => (
-            <Card key={i} card={card} />
-          ))}
+          {config.cards.map((card, i) =>
+            card.roles ? (
+              <RoleOnly key={i} roles={card.roles}>
+                <Card card={card} />
+              </RoleOnly>
+            ) : (
+              <Card key={i} card={card} />
+            ),
+          )}
         </main>
         <Footer text={config.footer} />
       </div>

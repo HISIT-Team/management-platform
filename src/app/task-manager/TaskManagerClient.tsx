@@ -879,7 +879,7 @@ export default function TaskManagerClient() {
   const visibleStatuses = fStatus === 'all' ? STATUSES : STATUSES.filter((s) => s.value === fStatus);
 
   return (
-    <AuthGuard roles={['it', 'admin']}>
+    <AuthGuard roles={['admin']}>
       <Topbar label="IT" href="/it" variant="back" />
       <div className="task-page">
         <div className="shell">

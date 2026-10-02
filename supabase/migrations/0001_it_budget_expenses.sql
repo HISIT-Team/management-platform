@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- NOTE: since 0016 these tables are admin/superadmin only (is_platform_admin()).
+--       If you re-run this file, re-run 0016 afterwards.
 -- IT Budget Management — expense ledger for the four 26/27 budget
 -- lines ("commesse"). Run this once in the Supabase SQL Editor.
 --

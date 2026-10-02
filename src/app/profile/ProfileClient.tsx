@@ -7,7 +7,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
-import { type MfaStatus, getMfaStatus, removeFactor } from '@/lib/mfa';
+import { type MfaStatus, forgetMyDevices, getMfaStatus, myTrustedDevicesCount, removeFactor } from '@/lib/mfa';
+import { trustedDeviceExpiry } from '@/lib/trustedDevice';
 import {
   type MyProfile,
   changeMyPassword,
@@ -81,6 +82,7 @@ export default function ProfileClient() {
 
   const [mfa, setMfa] = useState<MfaStatus | null>(null);
   const [mfaBusy, setMfaBusy] = useState(false);
+  const [devCount, setDevCount] = useState(0);
   const [pwd, setPwd] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -104,6 +106,7 @@ export default function ProfileClient() {
     getMfaStatus()
       .then((m) => active && setMfa(m))
       .catch(() => active && setMfa(null));
+    myTrustedDevicesCount().then((n) => active && setDevCount(n));
     loadMyProfile().then((p) => {
       if (!active) return;
       setMe(p);
@@ -176,11 +179,27 @@ export default function ProfileClient() {
       showToast('Il tuo ruolo richiede la MFA: aggiungi prima un’altra app, poi rimuovi questa.', true);
       return;
     }
+    if (!mfa.aal2) {
+      showToast('Per rimuoverla devi aver inserito il codice in questa sessione: esci, rientra senza “Ricorda dispositivo” e riprova.', true);
+      return;
+    }
     setMfaBusy(true);
     try {
       await removeFactor(id);
       setMfa({ ...mfa, factors: mfa.factors.filter((f) => f.id !== id) });
       showToast('App di autenticazione rimossa');
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setMfaBusy(false);
+  }
+
+  async function forgetDevices() {
+    setMfaBusy(true);
+    try {
+      const n = await forgetMyDevices();
+      setDevCount(0);
+      showToast(n ? `Dispositivi dimenticati: ${n}. Al prossimo accesso ti verrà chiesto il codice.` : 'Nessun dispositivo da dimenticare');
     } catch (e) {
       showToast((e as Error).message, true);
     }
@@ -345,7 +364,7 @@ export default function ProfileClient() {
                       </span>
                       <p className="pf-mfa-text">
                         {mfa.required
-                          ? 'Obbligatoria per il tuo ruolo: a ogni accesso ti viene chiesto il codice dell’app.'
+                          ? 'Obbligatoria per il tuo ruolo: all’accesso ti viene chiesto il codice dell’app (salvo sui dispositivi ricordati).'
                           : 'Facoltativa per il tuo ruolo, ma consigliata: protegge l’account anche se qualcuno scopre la password.'}
                       </p>
                     </div>
@@ -374,6 +393,19 @@ export default function ProfileClient() {
                     </div>
                     {mfa.factors.length === 1 ? (
                       <p className="pf-mfa-hint">Consiglio: registra anche un secondo telefono, così non resti bloccato se perdi il primo.</p>
+                    ) : null}
+                    {devCount > 0 || (me && trustedDeviceExpiry(me.id)) ? (
+                      <div className="pf-mfa-devices">
+                        <p className="pf-mfa-text">
+                          {devCount === 1 ? '1 dispositivo ricordato' : `${devCount} dispositivi ricordati`}
+                          {me && trustedDeviceExpiry(me.id)
+                            ? ` · questo browser fino al ${trustedDeviceExpiry(me.id)!.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+                            : ''}
+                        </p>
+                        <button className="btn-quiet" onClick={forgetDevices} disabled={mfaBusy}>
+                          Dimentica i dispositivi
+                        </button>
+                      </div>
                     ) : null}
                   </>
                 )}
@@ -519,6 +551,7 @@ export default function ProfileClient() {
         .pf-page .pf-mfa-list { list-style: none; margin: 1rem 0 .4rem; padding: 0; }
         .pf-page .pf-mfa-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: .6rem 0; border-top: 1px solid var(--b-line); font-size: 14px; font-weight: 600; }
         .pf-page .pf-mfa-list small { font-weight: 500; color: var(--b-muted); }
+        .pf-page .pf-mfa-devices { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: .9rem; padding-top: .8rem; border-top: 1px solid var(--b-line); }
         .pf-page .pf-mfa-hint { font-size: 12.5px; color: var(--b-muted); margin-top: .6rem; }
         .pf-page .pf-link-btn { text-decoration: none; }
         .pf-page .pf-modal-text { font-size: 13.5px; color: var(--b-muted); line-height: 1.5; margin-bottom: 1rem; }

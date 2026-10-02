@@ -2,12 +2,14 @@
 /* Mounted once in the root layout. While a page is open it records user
    activity (throttled) and, if the inactivity limit is exceeded — also
    after the computer wakes from sleep or a tab comes back to the front —
-   signs the user out and sends them to /login. See src/lib/idle.ts. */
+   signs the user out and sends them to /login. The limit depends on the
+   role (Gestione Backend → Sicurezza). See src/lib/idle.ts. */
 import { useEffect } from 'react';
 import { getSupabase } from '@/lib/supabase';
-import { clearActivity, isIdleExpired, touchActivity } from '@/lib/idle';
+import { clearActivity, isIdleExpired, refreshIdleLimit, touchActivity } from '@/lib/idle';
 
 const CHECK_EVERY_MS = 30_000;
+const LIMIT_REFRESH_MS = 10 * 60_000; // role timeout changed in Sicurezza → picked up within 10 min
 const TOUCH_THROTTLE_MS = 15_000;
 const EVENTS = ['pointerdown', 'keydown', 'touchstart', 'scroll', 'wheel'] as const;
 
@@ -56,11 +58,18 @@ export default function IdleWatcher() {
     );
     const { data: sub } = sb.auth.onAuthStateChange((event) => {
       if (fromEmailLink && (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY')) touchActivity();
+      if (event === 'SIGNED_IN') void refreshIdleLimit();
       if (event === 'SIGNED_OUT') clearActivity();
     });
     void check();
+    const refresh = async () => {
+      if (await hasSession()) await refreshIdleLimit();
+    };
+    void refresh();
+    const limitTimer = window.setInterval(refresh, LIMIT_REFRESH_MS);
 
     return () => {
+      window.clearInterval(limitTimer);
       EVENTS.forEach((e) => window.removeEventListener(e, onActivity));
       document.removeEventListener('visibilitychange', onVisible);
       window.clearInterval(timer);

@@ -171,7 +171,7 @@ export default function UserManagementClient() {
 
   const doResetMfa = async () => {
     if (!edit) return;
-    if (!window.confirm(`Azzerare la MFA di ${edit.user.email}? Al prossimo accesso dovrà configurarla di nuovo.`)) return;
+    if (!window.confirm(`Azzerare la MFA di ${edit.user.email}? Rimuove le sue app di autenticazione e i dispositivi ricordati: al prossimo accesso dovrà configurarla di nuovo.`)) return;
     setBusy(true);
     try {
       const n = await resetUserMfa(edit.user.id);

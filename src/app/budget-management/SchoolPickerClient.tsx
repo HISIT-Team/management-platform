@@ -59,7 +59,7 @@ function SchoolInner({ school }: { school: School }) {
 
 export default function SchoolPickerClient() {
   return (
-    <AuthGuard roles={['it', 'admin']}>
+    <AuthGuard roles={['admin']}>
       <Topbar label="IT" href="/it" variant="back" />
       <div className="budget-page">
         <div className="shell shell--narrow">

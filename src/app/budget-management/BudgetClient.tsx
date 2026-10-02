@@ -268,7 +268,7 @@ export default function BudgetClient({ school }: { school: School }) {
     : 0;
 
   return (
-    <AuthGuard roles={['it', 'admin']}>
+    <AuthGuard roles={['admin']}>
       <Topbar label="Scuole" href="/budget-management" variant="back" />
       <div className="budget-page">
         <div className="shell">

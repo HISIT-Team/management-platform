@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- MFA (TOTP authenticator app) required per role.
 -- Run once in the Supabase SQL Editor, AFTER 0014. Rieseguibile.
+-- NOTE: 0016 redefines mfa_ok() and admin_reset_mfa(): if you re-run this
+-- file, re-run 0016 afterwards.
 --
 -- • mfa_role_policy: which roles must use the second factor. Changed
 --   only by a Super Admin from Gestione Backend → Sicurezza (every change

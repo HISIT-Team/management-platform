@@ -4,7 +4,8 @@
    ═══════════════════════════════════════════════════════════════════ */
 import type { User } from '@supabase/supabase-js';
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase';
-import { clearActivity, isIdleExpired, touchActivity } from './idle';
+import { trustedDeviceHeaders } from './trustedDevice';
+import { clearActivity, isIdleExpired, refreshIdleLimit, touchActivity } from './idle';
 import { SIGNUP_ENABLED } from './features';
 import { mfaStepNeeded } from './mfa';
 
@@ -70,6 +71,7 @@ export async function signInUser({ email, password, captchaToken }: SignInArgs) 
   });
   if (error) throw error;
   touchActivity(); // fresh login → inactivity timer starts now
+  void refreshIdleLimit(); // role-based inactivity limit
   return data;
 }
 
@@ -213,6 +215,7 @@ export async function submitForm(formType: string, payload: unknown, captchaToke
       'Content-Type': 'application/json',
       apikey: SUPABASE_ANON_KEY,
       Authorization: 'Bearer ' + session.access_token,
+      ...trustedDeviceHeaders(), // remembered device (MFA), checked by the function
     },
     body: JSON.stringify({ form_type: formType, payload, captchaToken }),
   });

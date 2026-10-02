@@ -4,13 +4,15 @@
    - Authenticator present → enter the 6-digit code.
    - /mfa?setup=1 (from My profile) → add another authenticator (backup phone).
    On success the session becomes aal2 and the user goes back to the page
-   they were opening. See src/lib/mfa.ts and migration 0015. */
+   they were opening. "Ricorda questo dispositivo" skips the code on this
+   browser for the hours set in Sicurezza (default 24). See src/lib/mfa.ts
+   and migrations 0015/0016. */
 import React, { useEffect, useRef, useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { POST_LOGIN_KEY } from '@/components/AuthGuard';
 import { getCurrentUser, signOutUser } from '@/lib/auth';
-import { type MfaFactor, getMfaStatus, startTotpEnrollment, verifyTotp } from '@/lib/mfa';
+import { type MfaFactor, getMfaStatus, startTotpEnrollment, trustThisDevice, verifyTotp } from '@/lib/mfa';
 
 type Mode = 'loading' | 'challenge' | 'enroll' | 'done';
 
@@ -36,6 +38,8 @@ export default function MfaClient() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [rememberHours, setRememberHours] = useState(0);
+  const [remember, setRemember] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function beginEnroll() {
@@ -68,7 +72,13 @@ export default function MfaClient() {
       setSetup(isSetup);
       setRequired(st.required);
       setFactors(st.factors);
-      if (st.aal2 && !isSetup) {
+      setRememberHours(st.rememberHours);
+      try {
+        setRemember(localStorage.getItem('his:mfaRememberChoice') !== '0');
+      } catch {
+        /* ignore */
+      }
+      if ((st.aal2 || st.trusted) && !isSetup) {
         window.location.replace(nextPage());
         return;
       }
@@ -108,6 +118,20 @@ export default function MfaClient() {
         setMode('done');
         setBusy(false);
         return;
+      }
+      if (rememberHours > 0) {
+        try {
+          localStorage.setItem('his:mfaRememberChoice', remember ? '1' : '0');
+        } catch {
+          /* ignore */
+        }
+        if (remember) {
+          try {
+            await trustThisDevice();
+          } catch {
+            /* not fatal: the code will simply be asked again next time */
+          }
+        }
       }
       window.location.replace(nextPage());
     } catch (err) {
@@ -208,6 +232,17 @@ export default function MfaClient() {
                   }}
                 />
               </div>
+              {!setup && rememberHours > 0 ? (
+                <label className="mfa-remember">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                  <span>
+                    Remember this device for {rememberHours === 1 ? '1 hour' : `${rememberHours} hours`} / Ricorda questo
+                    dispositivo per {rememberHours === 1 ? '1 ora' : `${rememberHours} ore`}
+                    <small>Don&apos;t tick it on shared computers. / Non spuntarlo su computer condivisi.</small>
+                  </span>
+                </label>
+              ) : null}
+
               <button className="btn-login" onClick={submit} disabled={busy || (mode === 'enroll' && !factorId)}>
                 {busy ? 'Checking…' : mode === 'enroll' ? 'Activate' : 'Verify'}
               </button>
@@ -243,6 +278,9 @@ export default function MfaClient() {
         .mfa-screen .mfa-secret code { display: block; margin-top: .5rem; font-size: 13px; word-break: break-all; background: #FAF8F7; border-radius: 8px; padding: .5rem; color: var(--ink); letter-spacing: .06em; }
         .mfa-screen .mfa-code { text-align: center; font-size: 22px !important; letter-spacing: .4em; font-variant-numeric: tabular-nums; }
         .mfa-screen .mfa-select { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); font-family: inherit; font-size: 14px; }
+        .mfa-screen .mfa-remember { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--ink); margin: -.2rem 0 1rem; cursor: pointer; line-height: 1.45; }
+        .mfa-screen .mfa-remember input { margin-top: 3px; width: 16px; height: 16px; accent-color: var(--brand, #8B1A2B); flex-shrink: 0; }
+        .mfa-screen .mfa-remember small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
         .mfa-screen a.btn-login { display: block; text-align: center; text-decoration: none; }
       `}</style>
     </div>

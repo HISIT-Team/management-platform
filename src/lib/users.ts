@@ -75,6 +75,10 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   signatures_purged: 'Firme rimosse (conservazione)',
   mfa_policy_changed: 'Regola MFA cambiata',
   mfa_reset: 'MFA azzerata',
+  mfa_device_trusted: 'Dispositivo ricordato (MFA)',
+  mfa_devices_forgotten: 'Dispositivi dimenticati (MFA)',
+  mfa_remember_changed: 'Durata "ricorda dispositivo" cambiata',
+  idle_timeout_changed: 'Timeout inattività cambiato',
 };
 
 export async function listAudit(limit = 1000): Promise<AuditEntry[]> {
@@ -87,12 +91,14 @@ export async function listAudit(limit = 1000): Promise<AuditEntry[]> {
 export interface MfaPolicy {
   role: string;
   required: boolean;
+  /** Inactivity timeout for the role, minutes (migration 0016). */
+  idle_minutes: number;
   updated_at: string;
   updated_by: string | null;
 }
 
 export async function listMfaPolicy(): Promise<MfaPolicy[]> {
-  const { data, error } = await getSupabase().from('mfa_role_policy').select('role,required,updated_at,updated_by');
+  const { data, error } = await getSupabase().from('mfa_role_policy').select('role,required,idle_minutes,updated_at,updated_by');
   if (error) throw new Error(error.message);
   const order = ROLES.map((r) => r.value);
   return ((data ?? []) as MfaPolicy[]).sort((a, b) => order.indexOf(a.role) - order.indexOf(b.role));
@@ -100,6 +106,16 @@ export async function listMfaPolicy(): Promise<MfaPolicy[]> {
 
 export async function setMfaPolicy(role: string, required: boolean): Promise<void> {
   const { error } = await getSupabase().rpc('admin_set_mfa_policy', { p_role: role, p_required: required });
+  if (error) throw new Error(error.message);
+}
+
+export async function setIdleTimeout(role: string, minutes: number): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_set_idle_timeout', { p_role: role, p_minutes: minutes });
+  if (error) throw new Error(error.message);
+}
+
+export async function setRememberHours(hours: number): Promise<void> {
+  const { error } = await getSupabase().rpc('admin_set_mfa_remember_hours', { p_hours: hours });
   if (error) throw new Error(error.message);
 }
 
