@@ -33,6 +33,13 @@
 
 html, body {
   min-height: 100vh;
+  /* No sideways scrolling on phones: anything wider than the screen is
+     clipped instead of making the whole page pan left/right. `clip` (unlike
+     `hidden`) does not create a scroll container, so sticky/fixed elements
+     keep working; `hidden` is the fallback for older browsers. */
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
   color: var(--ink);
@@ -86,6 +93,7 @@ body::before {
 /* ── Page layout ── */
 .page {
   min-height: 100vh;
+  width: 100%;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   padding: 5.5rem 1.5rem 3rem;
@@ -278,7 +286,7 @@ body::before {
   box-shadow: var(--shadow-sm);
   animation: rise .5s cubic-bezier(.22,.9,.3,1) both;
 }
-.welcome-text { font-size: 14px; color: var(--muted); flex: 1; min-width: 0; }
+.welcome-text { font-size: 14px; color: var(--muted); flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .welcome-avatar {
   width: 44px; height: 44px; flex-shrink: 0; border-radius: 50%; overflow: hidden;
   display: flex; align-items: center; justify-content: center; text-decoration: none;
@@ -339,7 +347,16 @@ body::before {
   .card-name { font-size: 15px; }
   .header { margin-bottom: 2.25rem; }
   .logo-wrap img { height: 44px; }
-  .welcome-bar { flex-direction: row; }
+  .welcome-bar { flex-direction: row; flex-wrap: wrap; gap: .8rem 1rem; padding: .95rem 1rem; }
+  .welcome-actions { width: 100%; flex-wrap: nowrap; }
+  .welcome-actions > * { flex: 1; text-align: center; }
+  #dashboard-screen, .cards, .header { max-width: 100%; }
+  .title-eyebrow { font-size: 10px; letter-spacing: .14em; gap: 8px; }
+  .title-eyebrow::before, .title-eyebrow::after { width: 16px; }
+}
+@media (max-width: 380px) {
+  .title-eyebrow { letter-spacing: .1em; }
+  .title-eyebrow::before, .title-eyebrow::after { display: none; }
 }
 
 /* ── Auth guard flash prevention (guarded pages add .ready via JS) ── */

@@ -174,6 +174,7 @@ export default function SecuritySettingsClient() {
             <div className="skeleton" />
           ) : (
             <div className="ledger">
+              <div className="ledger-scroll">
               <table>
                 <thead>
                   <tr>
@@ -237,6 +238,7 @@ export default function SecuritySettingsClient() {
                   })}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
 
