@@ -8,6 +8,8 @@ import { trustedDeviceHeaders } from './trustedDevice';
 import { clearActivity, isIdleExpired, refreshIdleLimit, touchActivity } from './idle';
 import { SIGNUP_ENABLED } from './features';
 import { mfaStepNeeded } from './mfa';
+import { allows } from './nav';
+import { loadMyPermissions } from './permissions';
 
 // Where the confirmation / reset links send the user back to.
 // IMPORTANT: add these exact URLs in Supabase →
@@ -174,10 +176,12 @@ export type AccessResult =
   | { status: 'unauthenticated' }
   | { status: 'forbidden' }
   | { status: 'mfa' }
-  | { status: 'ok'; user: User; profile: Profile | null };
+  | { status: 'ok'; user: User; profile: Profile | null; perms: string[] | null };
 
 // Guard for protected pages. Used by <AuthGuard>.
-export async function checkAccess(allowedRoles?: string[]): Promise<AccessResult> {
+// `perm`: permission of the role (Gestione Backend → Permessi ruoli); when the
+// permissions aren't available yet (migration 0017 not run) `allowedRoles` decides.
+export async function checkAccess(allowedRoles?: string[], perm?: string): Promise<AccessResult> {
   const user = await getCurrentUser();
   if (!user) return { status: 'unauthenticated' };
   let profile: Profile | null = null;
@@ -186,19 +190,15 @@ export async function checkAccess(allowedRoles?: string[]): Promise<AccessResult
   } catch {
     /* no profile row yet */
   }
-  if (allowedRoles && allowedRoles.length) {
-    const roles = profileRoles(profile);
-    // superadmin: everywhere. admin: everywhere except superadmin-only pages.
-    const superadminOnly = allowedRoles.every((r) => r === 'superadmin');
-    const ok =
-      roles.includes('superadmin') ||
-      roles.some((r) => allowedRoles.includes(r)) ||
-      (roles.includes('admin') && !superadminOnly);
-    if (!ok) return { status: 'forbidden' };
+  const roles = profileRoles(profile);
+  const perms = await loadMyPermissions();
+  // Owner / Super Admin: everywhere. Others: the permission (or the role list).
+  if (perm || (allowedRoles && allowedRoles.length)) {
+    if (!allows({ roles, perms }, perm, allowedRoles ?? [])) return { status: 'forbidden' };
   }
   // Second factor required for this role and not passed yet → /mfa.
   if (await mfaStepNeeded()) return { status: 'mfa' };
-  return { status: 'ok', user, profile };
+  return { status: 'ok', user, profile, perms };
 }
 
 // ─── SECURE FORM SUBMIT ───────────────────────────────────────

@@ -168,7 +168,7 @@ export default function RoomAssignmentClient() {
   }
 
   return (
-    <AuthGuard roles={['boarding', 'admin']}>
+    <AuthGuard roles={['boarding', 'admin']} perm="boarding.rooms">
       <div className="form-page">
         <div className="form-wrap">
           <Link className="back-link" href="/boarding">

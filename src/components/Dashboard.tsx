@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Icon, { type IconName } from './Icon';
 import { useShell } from './AppShell';
 import Footer from './Footer';
-import { canSee, navFor } from '@/lib/nav';
+import { allows, navFor } from '@/lib/nav';
 import { getSupabase } from '@/lib/supabase';
 import {
   type BudgetSummary,
@@ -70,11 +70,17 @@ function Delta({ now, prev }: { now: number; prev: number }) {
 
 export default function Dashboard() {
   const { user } = useShell();
-  const roles = user?.roles ?? [];
-  const isIt = canSee(roles, ['it', 'admin']);
-  const isAdmin = canSee(roles, ['admin']);
-  const isHr = canSee(roles, ['hr', 'admin']);
-  const isBoarding = canSee(roles, ['boarding', 'admin']);
+  const access = { roles: user?.roles ?? [], perms: user?.perms ?? null };
+  // What the dashboard shows follows the role's permissions (Permessi ruoli).
+  const isIt = allows(access, 'it.history', ['it', 'admin']); // device KPIs + movements
+  const canStudentForm = allows(access, 'it.checkin_student', ['it', 'admin']);
+  const canBudget = allows(access, 'it.budget', ['admin']);
+  const canTasks = allows(access, 'it.tasks', ['admin']);
+  const isAdmin = canBudget || canTasks; // right-hand column
+  const canOnboarding = allows(access, 'hr.onboarding', ['hr', 'admin']);
+  const canOffboarding = allows(access, 'hr.offboarding', ['hr', 'admin']);
+  const isHr = canOnboarding || canOffboarding;
+  const isBoarding = allows(access, 'boarding.rooms', ['boarding', 'admin']);
 
   const [stats, setStats] = useState<DeviceStats | null>(null);
   const [moves, setMoves] = useState<RecentMove[] | null>(null);
@@ -91,20 +97,18 @@ export default function Dashboard() {
         loadDeviceStats().then((v) => active && setStats(v)),
         loadRecentMoves().then((v) => active && setMoves(v)),
       ];
-      if (isAdmin) {
-        jobs.push(loadBudgetSummary().then((v) => active && setBudget(v)));
-        if (data.user) jobs.push(loadTaskSummary(data.user.id).then((v) => active && setTasks(v)));
-      }
+      if (canBudget) jobs.push(loadBudgetSummary().then((v) => active && setBudget(v)));
+      if (canTasks && data.user) jobs.push(loadTaskSummary(data.user.id).then((v) => active && setTasks(v)));
       await Promise.allSettled(jobs);
       if (active) setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [isIt, isAdmin]);
+  }, [isIt, canBudget, canTasks]);
 
   const first = (user?.name ?? '').split(' ')[0] || '';
-  const sections = navFor(roles)
+  const sections = navFor(access)
     .flatMap((g) => g.items)
     .filter((i) => i.href !== '/');
 
@@ -128,7 +132,7 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="db-actions">
-            {isIt ? (
+            {canStudentForm ? (
               <>
                 <Link className="ui-btn" href="/modulo-student?op=checkin">
                   <Icon name="return" size={17} />
@@ -138,25 +142,31 @@ export default function Dashboard() {
                   <Icon name="plus" size={17} />
                   Nuova consegna
                 </Link>
-                <Link className="ui-btn wide" href="/device-history">
-                  <Icon name="history" size={17} />
-                  Storico assegnazioni
-                </Link>
               </>
             ) : null}
-            {!isIt && isHr ? (
+            {isIt ? (
+              <Link className="ui-btn wide" href="/device-history">
+                <Icon name="history" size={17} />
+                Storico assegnazioni
+              </Link>
+            ) : null}
+            {!canStudentForm && !isIt && isHr ? (
               <>
-                <Link className="ui-btn" href="/employee-management">
-                  <Icon name="userMinus" size={17} />
-                  Offboarding
-                </Link>
-                <Link className="ui-btn primary" href="/onboarding">
-                  <Icon name="userPlus" size={17} />
-                  Nuovo onboarding
-                </Link>
+                {canOffboarding ? (
+                  <Link className="ui-btn" href="/employee-management">
+                    <Icon name="userMinus" size={17} />
+                    Offboarding
+                  </Link>
+                ) : null}
+                {canOnboarding ? (
+                  <Link className="ui-btn primary" href="/onboarding">
+                    <Icon name="userPlus" size={17} />
+                    Nuovo onboarding
+                  </Link>
+                ) : null}
               </>
             ) : null}
-            {!isIt && !isHr && isBoarding ? (
+            {!canStudentForm && !isIt && !isHr && isBoarding ? (
               <Link className="ui-btn primary" href="/room-assignment">
                 <Icon name="house" size={17} />
                 Assegna una camera
@@ -198,7 +208,7 @@ export default function Dashboard() {
                 <div className="db-kpi-val">{stats.outYear}</div>
                 <div className="db-kpi-sub">{stats.inYear} restituzioni nello stesso periodo</div>
               </div>
-              {isAdmin && tasks ? (
+              {canTasks && tasks ? (
                 <div className="db-card db-kpi">
                   <div className="db-kpi-top">Task aperte</div>
                   <div className="db-kpi-val">{tasks.open}</div>

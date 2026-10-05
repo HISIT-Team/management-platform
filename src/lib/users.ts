@@ -21,6 +21,7 @@ export interface PlatformUser {
 
 /* Keep in sync with public.platform_roles() in the 0008 migration. */
 export const ROLES: { value: string; label: string; color: string; soft: string }[] = [
+  { value: 'owner', label: 'Owner', color: '#7A5A00', soft: '#FBF4DF' },
   { value: 'superadmin', label: 'Super Admin', color: '#5B1220', soft: '#F3E3E6' },
   { value: 'admin', label: 'Admin', color: '#8B1A2B', soft: '#F9EFF0' },
   { value: 'it', label: 'IT', color: '#3C5A8A', soft: '#E8EEF7' },
@@ -79,6 +80,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   mfa_devices_forgotten: 'Dispositivi dimenticati (MFA)',
   mfa_remember_changed: 'Durata "ricorda dispositivo" cambiata',
   idle_timeout_changed: 'Timeout inattività cambiato',
+  permission_changed: 'Permesso di un ruolo cambiato',
 };
 
 export async function listAudit(limit = 1000): Promise<AuditEntry[]> {

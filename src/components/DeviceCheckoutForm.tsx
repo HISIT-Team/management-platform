@@ -355,7 +355,7 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
   const orgOptions = ['H-INTERNATIONAL SCHOOL SRL', 'H-INTERNATIONAL SCHOOL VICENZA SRL', 'H-INTERNATIONAL SCHOOL ROSÀ SRL'];
 
   return (
-    <AuthGuard roles={config.roles}>
+    <AuthGuard roles={config.roles} perm={config.kind === 'student' ? 'it.checkin_student' : 'it.checkin_employee'}>
       <div className="form-page">
         <Link className="back-link" href={config.backHref}>
           <svg viewBox="0 0 24 24">

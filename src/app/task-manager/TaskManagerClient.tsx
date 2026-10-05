@@ -910,7 +910,7 @@ export default function TaskManagerClient() {
   }
 
   return (
-    <AuthGuard roles={['admin']}>
+    <AuthGuard roles={['admin']} perm="it.tasks">
       <Topbar label="IT" href="/it" variant="back" />
       <div className="task-page">
         <div className="shell">

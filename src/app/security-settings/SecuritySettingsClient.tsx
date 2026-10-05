@@ -7,6 +7,7 @@
    change is written to audit_log. */
 import React, { useEffect, useMemo, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
+import { getSupabase } from '@/lib/supabase';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getMfaStatus } from '@/lib/mfa';
@@ -42,6 +43,14 @@ export default function SecuritySettingsClient() {
   const { showToast, toastNode } = useToast();
   const [policy, setPolicy] = useState<MfaPolicy[]>([]);
   const [users, setUsers] = useState<PlatformUser[]>([]);
+  // Rows of the Owner role: only an Owner can change them (also enforced in the DB).
+  const [meId, setMeId] = useState<string | null>(null);
+  useEffect(() => {
+    getSupabase()
+      .auth.getUser()
+      .then(({ data }) => setMeId(data.user?.id ?? null));
+  }, []);
+  const iAmOwner = users.some((u) => u.id === meId && u.role === 'owner');
   const [myAal2, setMyAal2] = useState(false);
   const [rememberHours, setRememberHoursState] = useState(24);
   const [busyRemember, setBusyRemember] = useState(false);
@@ -211,7 +220,7 @@ export default function SecuritySettingsClient() {
                             aria-label={`MFA obbligatoria per ${m.label}`}
                             className={'sec-switch' + (p.required ? ' on' : '')}
                             onClick={() => toggle(p)}
-                            disabled={!myAal2 || busyRole === p.role}
+                            disabled={!myAal2 || busyRole === p.role || (p.role === 'owner' && !iAmOwner)}
                           >
                             <i />
                           </button>
@@ -221,7 +230,7 @@ export default function SecuritySettingsClient() {
                             className="sec-select"
                             aria-label={`Timeout inattività per ${m.label}`}
                             value={p.idle_minutes}
-                            disabled={busyRole === p.role}
+                            disabled={busyRole === p.role || (p.role === 'owner' && !iAmOwner)}
                             onChange={(e) => changeIdle(p, Number(e.target.value))}
                           >
                             {(IDLE_OPTIONS.includes(p.idle_minutes) ? IDLE_OPTIONS : [...IDLE_OPTIONS, p.idle_minutes].sort((a, b) => a - b)).map(

@@ -15,12 +15,16 @@ export interface HubCard {
   href: string;
   external?: boolean;
   badge?: { text: string; soon?: boolean };
-  /** Only these roles see the card (superadmin always). Omit: everyone allowed in the hub. */
+  /** Only these roles see the card (Owner / Super Admin always) — fallback for `perm`. */
   roles?: string[];
+  /** Permission needed to see the card (Gestione Backend → Permessi ruoli). */
+  perm?: string;
 }
 
 export interface HubConfig {
   roles: string[];
+  /** Permission needed to open the hub; `roles` is the fallback. */
+  perm?: string;
   topbar: { label: string; href: string; variant?: 'home' | 'back' };
   titlePre: string;
   titleSpan: string;
@@ -69,14 +73,14 @@ function Card({ card }: { card: HubCard }) {
 
 export default function HubPage({ config }: { config: HubConfig }) {
   return (
-    <AuthGuard roles={config.roles}>
+    <AuthGuard roles={config.roles} perm={config.perm}>
       <Topbar label={config.topbar.label} href={config.topbar.href} variant={config.topbar.variant} />
       <div className="page">
         <Header titlePre={config.titlePre} titleSpan={config.titleSpan} subtitle={config.subtitle} />
         <main className="cards">
           {config.cards.map((card, i) =>
-            card.roles ? (
-              <RoleOnly key={i} roles={card.roles}>
+            card.roles || card.perm ? (
+              <RoleOnly key={i} roles={card.roles ?? config.roles} perm={card.perm}>
                 <Card card={card} />
               </RoleOnly>
             ) : (

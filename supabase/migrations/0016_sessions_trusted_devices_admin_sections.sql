@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- Sessions, "remember this device" for MFA, admin-only IT sections.
 -- Run once in the Supabase SQL Editor, AFTER 0015. Rieseguibile.
+-- NOTE: 0017 (Owner + permissions) redefines several functions and policies
+-- of this file: if you re-run it, re-run 0017 afterwards.
 --
 -- 1. Inactivity timeout per role (minutes, 5–1440, default 60), set by a
 --    Super Admin in Gestione Backend → Sicurezza. Stored in

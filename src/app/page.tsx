@@ -10,6 +10,7 @@ import Dashboard from '@/components/Dashboard';
 import { getCurrentUser, ensureProfile, loadProfile, profileRoles, type Profile } from '@/lib/auth';
 import { SIGNUP_ENABLED } from '@/lib/features';
 import { navFor } from '@/lib/nav';
+import { loadMyPermissions } from '@/lib/permissions';
 
 export default function HomePage() {
   // Coming back from another page of the app: show the dashboard straight away.
@@ -36,7 +37,9 @@ export default function HomePage() {
       }
       if (!active) return;
       const roles = profileRoles(profile);
-      const hasSection = navFor(roles).some((g) => g.items.some((i) => i.href !== '/'));
+      const perms = await loadMyPermissions();
+      if (!active) return;
+      const hasSection = navFor({ roles, perms }).some((g) => g.items.some((i) => i.href !== '/'));
       // Guests (new sign-ups) and accounts without any section get their own home.
       if (roles.includes('guest') || !hasSection) {
         window.location.replace('/guest');

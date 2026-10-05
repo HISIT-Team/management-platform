@@ -148,6 +148,10 @@ export default function UserManagementClient() {
     [users, roleFilter, q],
   );
 
+  // Owner accounts: only an Owner can edit, delete or reset them, or give the role.
+  const meIsOwner = users.some((u) => u.id === meId && u.role === 'owner');
+  const lockedForMe = (u: PlatformUser) => u.role === 'owner' && !meIsOwner;
+  const roleOptions = ROLES.filter((r) => r.value !== 'owner' || meIsOwner || edit?.user.role === 'owner');
   const openEdit = (u: PlatformUser) => setEdit({ user: u, first: u.first_name ?? '', last: u.last_name ?? '', role: u.role });
 
   const saveEdit = async () => {
@@ -283,8 +287,9 @@ export default function UserManagementClient() {
                 </div>
                 <div className="stat">
                   <div className="stat-lbl">Amministratori</div>
-                  <div className="stat-val">{(counts.superadmin || 0) + (counts.admin || 0)}</div>
+                  <div className="stat-val">{(counts.owner || 0) + (counts.superadmin || 0) + (counts.admin || 0)}</div>
                   <div className="stat-sub">
+                    {counts.owner ? `${counts.owner} Owner · ` : ''}
                     {counts.superadmin || 0} Super Admin · {counts.admin || 0} Admin
                   </div>
                 </div>
@@ -382,15 +387,21 @@ export default function UserManagementClient() {
                           <td className="col-date">{fmtDate(u.created_at)}</td>
                           <td className="col-date">{fmtDateTime(u.last_sign_in_at)}</td>
                           <td className="col-actions um-actions">
-                            <button className="icon-btn um-edit" title="Modifica utente" aria-label={`Modifica ${u.email}`} onClick={() => openEdit(u)}>
+                            <button
+                              className="icon-btn um-edit"
+                              title={lockedForMe(u) ? 'Account Owner: solo un Owner può modificarlo' : 'Modifica utente'}
+                              aria-label={`Modifica ${u.email}`}
+                              onClick={() => openEdit(u)}
+                              disabled={lockedForMe(u)}
+                            >
                               {IconEdit}
                             </button>
                             <button
                               className="icon-btn"
-                              title={me ? 'Non puoi eliminare il tuo account' : 'Elimina utente'}
+                              title={me ? 'Non puoi eliminare il tuo account' : lockedForMe(u) ? 'Account Owner: solo un Owner può eliminarlo' : 'Elimina utente'}
                               aria-label={`Elimina ${u.email}`}
                               onClick={() => setToDelete(u)}
-                              disabled={me}
+                              disabled={me || lockedForMe(u)}
                             >
                               {IconTrash}
                             </button>
@@ -450,15 +461,21 @@ export default function UserManagementClient() {
                     id="um-role"
                     value={edit.role}
                     onChange={(e) => setEdit({ ...edit, role: e.target.value })}
-                    disabled={edit.user.id === meId}
+                    disabled={edit.user.id === meId && !meIsOwner}
                   >
-                    {ROLES.map((r) => (
+                    {roleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
                         {r.label}
                       </option>
                     ))}
                   </select>
-                  {edit.user.id === meId ? <p className="um-hint">Non puoi cambiare il tuo ruolo di Super Admin.</p> : null}
+                  {edit.user.id === meId && !meIsOwner ? <p className="um-hint">Non puoi cambiare il tuo ruolo di Super Admin.</p> : null}
+                  {edit.user.id === meId && meIsOwner ? (
+                    <p className="um-hint">Puoi lasciare il ruolo Owner solo se c&apos;è almeno un altro Owner.</p>
+                  ) : null}
+                  {edit.role === 'owner' && edit.user.id !== meId ? (
+                    <p className="um-hint um-hint--warn">L&apos;Owner ha il controllo totale: nessun Super Admin potrà più modificarlo o eliminarlo.</p>
+                  ) : null}
                   {edit.role === 'superadmin' && edit.user.id !== meId ? (
                     <p className="um-hint um-hint--warn">Il Super Admin ha accesso completo, compresa la gestione degli utenti.</p>
                   ) : null}

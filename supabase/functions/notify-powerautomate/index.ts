@@ -5,7 +5,8 @@
 //
 // - The flow URL lives ONLY in the Supabase secret
 //   POWER_AUTOMATE_WEBHOOK_URL — it is never shipped to the browser.
-// - Only signed-in users whose profile role is `it`, `admin` or `superadmin` may call it,
+// - Only signed-in users allowed to use the device forms may call it (permission
+//   it.checkin_student / it.checkin_employee, migration 0017; before it: roles it, admin, superadmin, owner),
 //   with the second factor passed when their role requires MFA (migration 0015).
 // - Optional secret ALLOWED_ORIGINS (comma-separated, e.g.
 //   "https://your-site.pages.dev,http://localhost:3000") restricts CORS;
@@ -18,7 +19,7 @@
 // ═══════════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const ALLOWED_ROLES = ['it', 'admin', 'superadmin'];
+const ALLOWED_ROLES = ['it', 'admin', 'superadmin', 'owner'];
 const MAX_BODY_BYTES = 30 * 1024 * 1024; // photos included; Power Automate accepts up to 100 MB
 
 function corsHeaders(origin: string | null): Record<string, string> {
@@ -140,7 +141,7 @@ Deno.serve(async (req) => {
   if (userErr || !userData?.user) return json({ error: 'Not signed in' }, 401, cors);
   const { data: profile } = await sb.from('profiles').select('role').eq('id', userData.user.id).maybeSingle();
   const role = String(profile?.role ?? '').trim().toLowerCase();
-  if (!ALLOWED_ROLES.includes(role)) return json({ error: 'Forbidden' }, 403, cors);
+  if (!role || role === 'guest') return json({ error: 'Forbidden' }, 403, cors);
   // Second factor: aal2 session, remembered device, or not required for the role.
   if (!(await mfaOk(sb, role, authHeader.slice(7)))) {
     return json({ error: 'Two-factor authentication required' }, 403, cors);
@@ -157,6 +158,11 @@ Deno.serve(async (req) => {
   }
   const outgoing = sanitize(body);
   if (!outgoing) return json({ error: 'Invalid form data' }, 400, cors);
+  // Permission for this form (migration 0017); before 0017: the role list.
+  const perm = String(outgoing.form_type).startsWith('employee') ? 'it.checkin_employee' : 'it.checkin_student';
+  const permRes = await sb.rpc('has_permission', { p_perm: perm });
+  const allowed = !permRes.error ? permRes.data === true : ALLOWED_ROLES.includes(role);
+  if (!allowed) return json({ error: 'Forbidden' }, 403, cors);
   Object.assign(outgoing, {
     // Server-side facts the browser cannot fake.
     submitted_by: { id: userData.user.id, email: userData.user.email ?? null, role },

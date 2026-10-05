@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- NOTE: since 0017 access is decided by the role permissions (has_permission()):
+--       if you re-run this file, re-run 0017 afterwards.
 -- Student device log — allow IT staff / admins to delete records
 -- (button in the /device-history dashboard). Run once in the Supabase
 -- SQL Editor, after 0005. Rieseguibile senza effetti collaterali.

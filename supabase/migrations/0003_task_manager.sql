@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- NOTE: since 0017 access is decided by the role permissions (has_permission()):
+--       if you re-run this file, re-run 0017 afterwards.
 -- NOTE: since 0016 these tables are admin/superadmin only (is_platform_admin()).
 --       If you re-run this file, re-run 0016 afterwards.
 -- IT Task Manager — attività del team IT, gruppi di progetto e

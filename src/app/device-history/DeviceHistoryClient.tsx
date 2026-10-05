@@ -238,7 +238,7 @@ export default function DeviceHistoryClient() {
   };
 
   return (
-    <AuthGuard roles={['it', 'admin']}>
+    <AuthGuard roles={['it', 'admin']} perm="it.history">
       <Topbar label="IT" href="/it" variant="back" />
       <div className="budget-page dh-page">
         <div className="shell">

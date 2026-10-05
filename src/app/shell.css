@@ -33,14 +33,14 @@ html.sh-lock, html.sh-lock body { overflow: hidden; }
 }
 
 /* ── Layout ───────────────────────────────────────────────────────── */
-.sh-app { min-height: 100vh; background: var(--bg); }
+.sh-app { --z: 1; min-height: calc(100vh / var(--z)); background: var(--bg); }
 .sh-side {
   position: fixed; inset: 0 auto 0 0; width: var(--side-w); z-index: 60;
   background: var(--side); color: var(--side-ink);
   display: flex; flex-direction: column; padding: 18px 14px 14px;
   overflow-y: auto; overscroll-behavior: contain;
 }
-.sh-main { margin-left: var(--side-w); min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+.sh-main { margin-left: var(--side-w); min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh / var(--z)); }
 .sh-content { flex: 1; min-width: 0; }
 
 /* Brand */
@@ -156,13 +156,13 @@ html.sh-lock, html.sh-lock body { overflow: hidden; }
 }
 
 /* ── Pages inside the shell ───────────────────────────────────────── */
-.sh-content .page { min-height: 0; display: block; padding: 26px 32px 32px; max-width: 1240px; animation: none; }
+.sh-content .page { min-height: 0; display: block; padding: 26px 32px 32px; max-width: none; animation: none; }
 .sh-content .budget-page { min-height: 0; padding: 26px 32px 32px; animation: none; }
 .sh-content .task-page { min-height: 0; padding: 26px 24px 32px; }
 .sh-content .form-page { min-height: 0; padding: 20px 16px 32px; }
-.sh-content .budget-page .shell { max-width: 1240px; margin: 0; }
+.sh-content .budget-page .shell { max-width: none; margin: 0; }
 .sh-content .budget-page .shell--narrow { max-width: 760px; }
-.sh-content .task-page .shell { margin: 0; max-width: 1400px; }
+.sh-content .task-page .shell { margin: 0; max-width: none; }
 @media (max-width: 767px) {
   .sh-content .page, .sh-content .budget-page { padding: 18px 14px 24px; }
   .sh-content .task-page { padding: 18px 12px 24px; }
@@ -170,7 +170,7 @@ html.sh-lock, html.sh-lock body { overflow: hidden; }
 }
 
 /* Breadcrumb (Topbar inside the shell) */
-.pg-crumb { padding: 18px 32px 0; max-width: 1240px; }
+.pg-crumb { padding: 18px 32px 0; }
 .pg-crumb a { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--muted); text-decoration: none; }
 .pg-crumb a:hover { color: var(--brand); }
 .pg-crumb svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -190,7 +190,7 @@ html.sh-lock, html.sh-lock body { overflow: hidden; }
 @media (max-width: 767px) { .footer.footer--shell { margin: 8px 14px 16px; } }
 
 /* Hub tiles (HubPage inside the shell) */
-.sh-content .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; width: 100%; max-width: none; }
+.sh-content .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(260px, calc((100% - 3 * 14px) / 4)), 1fr)); gap: 14px; width: 100%; max-width: none; }
 .sh-content .card {
   display: flex; align-items: flex-start; gap: 14px; padding: 16px; min-height: 0;
   background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: none; transform: none;
@@ -224,7 +224,7 @@ html.sh-lock, html.sh-lock body { overflow: hidden; }
 .ui-chip.muted { background: #F1EDEC; color: var(--muted-2); }
 
 /* ── Dashboard ─────────────────────────────────────────────────────── */
-.db { padding: 26px 32px 8px; max-width: 1240px; display: flex; flex-direction: column; gap: 22px; }
+.db { padding: 26px 32px 8px; display: flex; flex-direction: column; gap: 22px; }
 .db-hello { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .db-date { font-size: 13px; color: var(--muted); font-weight: 600; text-transform: capitalize; }
 .db-hello h1 { margin-top: 4px; font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
@@ -318,3 +318,29 @@ html.sh-lock, html.sh-lock body { overflow: hidden; }
 .sh-content .page .footer--shell { margin: 22px 0 0; }
 .sh-brand img { width: 44px; }
 .sh-brand b { font-size: 15px; white-space: nowrap; }
+
+/* ── Wide screens ──────────────────────────────────────────────────
+   Content uses the whole width (grids add columns). "Centrata" in
+   My profile → Aspetto keeps it in a 1600px column instead. The
+   interface scale (zoom on .sh-app) is set by AppShell. */
+.sh-content > * { box-sizing: border-box; }
+.sh-app--centered .sh-content > * { max-width: 1600px; margin-left: auto; margin-right: auto; width: 100%; }
+.sh-app--centered .sh-content .footer--shell { max-width: calc(1600px - 64px); margin-left: auto; margin-right: auto; }
+.sh-content .form-page .form-wrap,
+.sh-content .form-page .page-header,
+.sh-content .form-page .back-link { max-width: 760px; }
+@media (min-width: 1800px) {
+  .db-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .db-split { grid-template-columns: minmax(0, 2.2fr) minmax(360px, 1fr); }
+}
+
+/* Very wide content area: hub tiles grow (max 4 per row) instead of
+   leaving empty space; dashboard tiles the same. */
+@media (min-width: 1800px) {
+  .sh-content .card { padding: 22px; gap: 18px; min-height: 120px; }
+  .sh-content .card .card-icon { width: 52px; height: 52px; border-radius: 14px; }
+  .sh-content .card .card-icon svg { width: 24px; height: 24px; }
+  .sh-content .card .card-name { font-size: 16px; }
+  .sh-content .card .card-desc { font-size: 13.5px; margin-top: 4px; }
+}
+.db-tiles { grid-template-columns: repeat(auto-fill, minmax(max(230px, calc((100% - 3 * 12px) / 4)), 1fr)); }

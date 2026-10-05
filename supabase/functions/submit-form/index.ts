@@ -49,19 +49,21 @@ const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') || '')
 const MAX_BODY_BYTES = 16 * 1024 * 1024   // 16 MB
 
 // Roles that may submit every form (platform administrators).
-const ADMIN_ROLES = ['admin', 'superadmin']
+const ADMIN_ROLES = ['admin', 'superadmin', 'owner']
 
 // form_type -> allowed roles + the secret holding that form's webhook URL.
-const FORMS: Record<string, { roles: string[]; webhookEnv: string }> = {
-  onboarding:  { roles: ['hr'],       webhookEnv: 'WEBHOOK_ONBOARDING' },
-  offboarding: { roles: ['hr'],       webhookEnv: 'WEBHOOK_OFFBOARDING' },
+// `perm`: the permission (Gestione Backend → Permessi ruoli, migration 0017)
+// that allows the form; `roles` is the fallback before 0017 is run.
+const FORMS: Record<string, { roles: string[]; perm: string; webhookEnv: string }> = {
+  onboarding:  { roles: ['hr'], perm: 'hr.onboarding',  webhookEnv: 'WEBHOOK_ONBOARDING' },
+  offboarding: { roles: ['hr'], perm: 'hr.offboarding', webhookEnv: 'WEBHOOK_OFFBOARDING' },
   // Check-in e check-out hanno webhook distinti, ma stesso ruolo: la scelta
   // del form_type da parte del client non attraversa nessun confine di permessi.
-  student_checkin:   { roles: ['it'],  webhookEnv: 'WEBHOOK_STUDENT_CHECKIN' },
-  student_checkout:  { roles: ['it'],  webhookEnv: 'WEBHOOK_STUDENT_CHECKOUT' },
-  employee_checkin:  { roles: ['it'],  webhookEnv: 'WEBHOOK_EMPLOYEE_CHECKIN' },
-  employee_checkout: { roles: ['it'],  webhookEnv: 'WEBHOOK_EMPLOYEE_CHECKOUT' },
-  room:        { roles: ['boarding'], webhookEnv: 'WEBHOOK_ROOM' },
+  student_checkin:   { roles: ['it'], perm: 'it.checkin_student',  webhookEnv: 'WEBHOOK_STUDENT_CHECKIN' },
+  student_checkout:  { roles: ['it'], perm: 'it.checkin_student',  webhookEnv: 'WEBHOOK_STUDENT_CHECKOUT' },
+  employee_checkin:  { roles: ['it'], perm: 'it.checkin_employee', webhookEnv: 'WEBHOOK_EMPLOYEE_CHECKIN' },
+  employee_checkout: { roles: ['it'], perm: 'it.checkin_employee', webhookEnv: 'WEBHOOK_EMPLOYEE_CHECKOUT' },
+  room:        { roles: ['boarding'], perm: 'boarding.rooms', webhookEnv: 'WEBHOOK_ROOM' },
 }
 
 // Echoes the caller's origin only when it is on the allowlist. With no
@@ -157,8 +159,6 @@ Deno.serve(async (req) => {
     const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
     const role = (profile?.role || '').trim().toLowerCase()   // case-insensitive role match
     if (!role || role === 'guest') return json(req, { error: 'Forbidden: your account has not been enabled yet' }, 403)
-    const allowed = conf.roles.includes(role) || ADMIN_ROLES.includes(role)
-    if (!allowed) return json(req, { error: 'Forbidden: your role cannot submit this form' }, 403)
 
     // 5b. Second factor, when the role requires it (Gestione Backend → Sicurezza).
     //     mfa_ok() (migration 0016) runs as the user: aal2, remembered device
@@ -179,6 +179,11 @@ Deno.serve(async (req) => {
     if (!mfaPassed) {
       return json(req, { error: 'Two-factor authentication required: sign in again with your authenticator code' }, 403)
     }
+
+    // 5c. Permission of the role for this form (migration 0017); before 0017: role list.
+    const permRes = await asUser.rpc('has_permission', { p_perm: conf.perm })
+    const allowed = !permRes.error ? permRes.data === true : conf.roles.includes(role) || ADMIN_ROLES.includes(role)
+    if (!allowed) return json(req, { error: 'Forbidden: your role cannot submit this form' }, 403)
 
     // 6. Forward to the hidden webhook, stamping who submitted it (server-side, trustworthy).
     // The _submitted_by_* keys are written AFTER the spread, so a client that

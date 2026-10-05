@@ -7,13 +7,16 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import Icon from './Icon';
-import { type NavItem, canSee, isActive, isSectionActive, navFor } from '@/lib/nav';
+import { type NavItem, allows, isActive, isSectionActive, navFor } from '@/lib/nav';
 import { signOutUser } from '@/lib/auth';
+import { type UiPrefs, UI_EVENT, readUiPrefs, zoomFor } from '@/lib/uiPrefs';
 
 export interface ShellUser {
   name: string;
   email: string;
   roles: string[];
+  /** Permissions of the role (null: not available, roles decide). */
+  perms: string[] | null;
   avatar: string | null;
 }
 
@@ -22,6 +25,7 @@ export const ShellContext = createContext<{ inShell: boolean; user: ShellUser | 
 export const useShell = () => useContext(ShellContext);
 
 const ROLE_LABEL: Record<string, string> = {
+  owner: 'Owner',
   superadmin: 'Super Admin',
   admin: 'Admin',
   it: 'IT',
@@ -72,8 +76,31 @@ export default function AppShell({ user, children }: { user: ShellUser; children
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  const groups = navFor(user.roles);
-  const isIt = canSee(user.roles, ['it', 'admin']);
+  // Display preferences (My profile → Aspetto) and the window width they depend on.
+  const [ui, setUi] = useState<{ prefs: UiPrefs; width: number }>(() =>
+    typeof window === 'undefined' ? { prefs: { size: 'auto', width: 'full' }, width: 1440 } : { prefs: readUiPrefs(), width: window.innerWidth },
+  );
+  useEffect(() => {
+    let raf = 0;
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setUi((u) => (u.width === window.innerWidth ? u : { ...u, width: window.innerWidth })));
+    };
+    const onPrefs = (e: Event) => setUi((u) => ({ ...u, prefs: (e as CustomEvent<UiPrefs>).detail }));
+    window.addEventListener('resize', onResize);
+    window.addEventListener(UI_EVENT, onPrefs);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener(UI_EVENT, onPrefs);
+    };
+  }, []);
+  const zoom = zoomFor(ui.prefs, ui.width);
+  const access = { roles: user.roles, perms: user.perms };
+  const groups = navFor(access);
+  const canStudentForm = allows(access, 'it.checkin_student', ['it', 'admin']);
+  const canHistory = allows(access, 'it.history', ['it', 'admin']);
+  const isIt = canStudentForm || canHistory;
   const role = user.roles[0] ?? '';
 
   // Lock the page behind the drawer while it is open (links close it on click).
@@ -149,9 +176,10 @@ export default function AppShell({ user, children }: { user: ShellUser; children
     { label: 'Home', href: '/', icon: 'dashboard', active: pathname === '/' },
   ];
   if (isIt) {
-    tabs.push({ label: 'IT', href: '/it', icon: 'it', active: isActive({ href: '/it', match: ['/it-registries-hub', '/student-checkinout-hub', '/employee-checkinout-hub'] } as NavItem, pathname) });
-    tabs.push({ label: 'Consegna', href: '/modulo-student?op=checkout', icon: 'plus', primary: true, active: pathname.startsWith('/modulo-') });
-    tabs.push({ label: 'Storico', href: '/device-history', icon: 'history', active: pathname.startsWith('/device-history') });
+    const itSection = sections.find((s) => s.href === '/it');
+    if (itSection) tabs.push({ label: 'IT', href: '/it', icon: 'it', active: isSectionActive(itSection, pathname) && !pathname.startsWith('/device-history') && !pathname.startsWith('/modulo-') });
+    if (canStudentForm) tabs.push({ label: 'Consegna', href: '/modulo-student?op=checkout', icon: 'plus', primary: true, active: pathname.startsWith('/modulo-') });
+    if (canHistory) tabs.push({ label: 'Storico', href: '/device-history', icon: 'history', active: pathname.startsWith('/device-history') });
   } else {
     sections.slice(0, 2).forEach((s) => tabs.push({ label: s.label, href: s.href, icon: s.icon, active: isSectionActive(s, pathname) }));
     tabs.push({ label: 'Profilo', href: '/profile', icon: 'user', active: pathname.startsWith('/profile') });
@@ -159,7 +187,10 @@ export default function AppShell({ user, children }: { user: ShellUser; children
 
   return (
     <ShellContext.Provider value={{ inShell: true, user }}>
-      <div className="sh-app">
+      <div
+        className={'sh-app' + (ui.prefs.width === 'centered' ? ' sh-app--centered' : '')}
+        style={{ ['--z' as string]: String(zoom), zoom: zoom === 1 ? undefined : zoom } as React.CSSProperties}
+      >
         <aside className="sh-side">{sidebar}</aside>
 
         <div className={'sh-drawer' + (open ? ' open' : '')} aria-hidden={!open}>
@@ -184,7 +215,7 @@ export default function AppShell({ user, children }: { user: ShellUser; children
                 Management <em>Platform</em>
               </b>
             </Link>
-            {isIt ? (
+            {canHistory ? (
               <form className="sh-search" onSubmit={search} role="search">
                 <Icon name="search" size={17} />
                 <label htmlFor="sh-q" className="sr-only">

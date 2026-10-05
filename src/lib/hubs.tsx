@@ -190,6 +190,7 @@ export const HUBS: Record<string, HubConfig> = {
     footer: FOOTER.backend,
     cards: [
       { icon: I.usersCog, name: 'Gestione Utenti', desc: 'Utenti, ruoli e dati dei profili', href: '/user-management' },
+      { icon: I.grid, name: 'Permessi ruoli', desc: 'Cosa può vedere e usare ogni ruolo', href: '/role-permissions' },
       { icon: I.grid, name: 'Registro attività', desc: 'Chi ha cambiato ruoli, utenti e record', href: '/audit-log' },
       { icon: I.grid, name: 'Sicurezza', desc: 'Autenticazione a due fattori obbligatoria per ruolo', href: '/security-settings' },
     ],
@@ -197,50 +198,54 @@ export const HUBS: Record<string, HubConfig> = {
 
   boarding: {
     roles: ['boarding', 'admin'],
+    perm: 'boarding',
     topbar: { label: 'Home', href: '/', variant: 'home' },
     titlePre: 'Boarding ',
     titleSpan: 'Management',
     subtitle: 'Student boarding tools and resources',
     footer: FOOTER.boarding,
     cards: [
-      { icon: I.house, name: 'Room Assignment', desc: 'Assign students to rooms', href: '/room-assignment-hub' },
-      { icon: I.video, name: 'Cameras', desc: 'Live surveillance feed', href: 'https://vision.meraki.com/login', external: true },
+      { icon: I.house, name: 'Room Assignment', desc: 'Assign students to rooms', href: '/room-assignment-hub', perm: 'boarding.rooms' },
+      { icon: I.video, name: 'Cameras', desc: 'Live surveillance feed', href: 'https://vision.meraki.com/login', external: true, perm: 'boarding' },
     ],
   },
 
   it: {
     roles: ['it', 'admin'],
+    perm: 'it',
     topbar: { label: 'Home', href: '/', variant: 'home' },
     titlePre: 'Device Management ',
     titleSpan: 'Platform',
     subtitle: 'Device management, deliveries and inventory',
     footer: FOOTER.itPlatform,
     cards: [
-      { icon: I.asset, name: 'Asset Manager', desc: 'Inventory and device management', href: 'https://assetmanager.h-farm.com/', external: true },
-      { icon: I.boxStudent, name: 'Check-in/Check-out Student', desc: 'Device delivery and return — students', href: '/student-checkinout-hub' },
-      { icon: I.briefcase, name: 'Check-in/Check-out Employee', desc: 'Device delivery and return — staff', href: '/employee-checkinout-hub' },
-      { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub' },
-      { icon: I.grid, name: 'Storico assegnazioni', desc: 'Storico dispositivi studenti — ricerca per email o ID', href: '/device-history' },
-      { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — Venezia, Vicenza, Rosà', href: '/budget-management', roles: ['admin'] },
-      { icon: I.tasks, name: 'Task Manager', desc: 'Attività del team IT, gruppi di progetto e sotto-task', href: '/task-manager', roles: ['admin'] },
+      { icon: I.asset, name: 'Asset Manager', desc: 'Inventory and device management', href: 'https://assetmanager.h-farm.com/', external: true, perm: 'it' },
+      { icon: I.boxStudent, name: 'Check-in/Check-out Student', desc: 'Device delivery and return — students', href: '/student-checkinout-hub', perm: 'it.checkin_student' },
+      { icon: I.briefcase, name: 'Check-in/Check-out Employee', desc: 'Device delivery and return — staff', href: '/employee-checkinout-hub', perm: 'it.checkin_employee' },
+      { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub', perm: 'it.registries' },
+      { icon: I.grid, name: 'Storico assegnazioni', desc: 'Storico dispositivi studenti — ricerca per email o ID', href: '/device-history', perm: 'it.history' },
+      { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — Venezia, Vicenza, Rosà', href: '/budget-management', perm: 'it.budget' },
+      { icon: I.tasks, name: 'Task Manager', desc: 'Attività del team IT, gruppi di progetto e sotto-task', href: '/task-manager', perm: 'it.tasks' },
     ],
   },
 
   hr: {
     roles: ['hr', 'admin'],
+    perm: 'hr',
     topbar: { label: 'Home', href: '/', variant: 'home' },
     titlePre: 'HR ',
     titleSpan: 'Management',
     subtitle: 'Personnel tools and resources',
     footer: FOOTER.hr,
     cards: [
-      { icon: I.people, name: 'Employee Management', desc: 'Onboarding & offboarding', href: '/employee-management-hub' },
-      { icon: I.grid, name: 'Registry', desc: 'Onboarding & offboarding registries', href: '/hr-registry-hub' },
+      { icon: I.people, name: 'Employee Management', desc: 'Onboarding & offboarding', href: '/employee-management-hub', perm: 'hr' },
+      { icon: I.grid, name: 'Registry', desc: 'Onboarding & offboarding registries', href: '/hr-registry-hub', perm: 'hr.registries' },
     ],
   },
 
   'student-office': {
     roles: ['office', 'admin'],
+    perm: 'office',
     topbar: { label: 'Home', href: '/', variant: 'home' },
     titlePre: 'Student ',
     titleSpan: 'Office',
@@ -256,13 +261,14 @@ export const HUBS: Record<string, HubConfig> = {
 
   'room-assignment-hub': {
     roles: ['boarding', 'admin'],
+    perm: 'boarding.rooms',
     topbar: { label: 'Boarding', href: '/boarding', variant: 'back' },
     titlePre: 'Room ',
     titleSpan: 'Assignment',
     subtitle: 'Manage room assignments, responses and photos',
     footer: FOOTER.boarding,
     cards: [
-      { icon: I.house, name: 'Assign a Room', desc: 'Fill in the room assignment form', href: '/room-assignment' },
+      { icon: I.house, name: 'Assign a Room', desc: 'Fill in the room assignment form', href: '/room-assignment', perm: 'boarding.rooms' },
       { icon: I.file, name: 'Form Responses', desc: 'View room assignment submissions', href: '#' },
       { icon: I.grid, name: 'Photos Responses', desc: 'Open the assignments spreadsheet', href: ROOM_PHOTOS_XLSX, external: true },
       { icon: I.photos, name: 'Photos History', desc: 'Browse uploaded room photos', href: ROOM_PHOTOS_HISTORY, external: true },
@@ -273,6 +279,7 @@ export const HUBS: Record<string, HubConfig> = {
 
   'it-registries-hub': {
     roles: ['it', 'admin'],
+    perm: 'it.registries',
     topbar: { label: 'IT', href: '/it', variant: 'home' },
     titlePre: 'Registri ',
     titleSpan: 'risposte',
@@ -288,6 +295,7 @@ export const HUBS: Record<string, HubConfig> = {
 
   'hr-registry-hub': {
     roles: ['hr', 'admin'],
+    perm: 'hr.registries',
     topbar: { label: 'HR', href: '/hr', variant: 'home' },
     titlePre: 'Registry ',
     titleSpan: 'Records',
@@ -301,19 +309,21 @@ export const HUBS: Record<string, HubConfig> = {
 
   'employee-management-hub': {
     roles: ['hr', 'admin'],
+    perm: 'hr',
     topbar: { label: 'HR', href: '/hr', variant: 'home' },
     titlePre: 'Employee ',
     titleSpan: 'Management',
     subtitle: 'Onboarding and offboarding of employees',
     footer: FOOTER.hr,
     cards: [
-      { icon: I.userPlus, name: 'Onboarding', desc: 'New employee setup request', href: '/onboarding' },
-      { icon: I.userMinus, name: 'Offboarding', desc: 'Departing employee process', href: '/employee-management' },
+      { icon: I.userPlus, name: 'Onboarding', desc: 'New employee setup request', href: '/onboarding', perm: 'hr.onboarding' },
+      { icon: I.userMinus, name: 'Offboarding', desc: 'Departing employee process', href: '/employee-management', perm: 'hr.offboarding' },
     ],
   },
 
   'employee-checkinout-hub': {
     roles: ['it', 'admin'],
+    perm: 'it.checkin_employee',
     topbar: { label: 'IT', href: '/it', variant: 'home' },
     titlePre: 'Employee ',
     titleSpan: 'Check-in / Check-out',
@@ -327,6 +337,7 @@ export const HUBS: Record<string, HubConfig> = {
 
   'student-checkinout-hub': {
     roles: ['it', 'admin'],
+    perm: 'it.checkin_student',
     topbar: { label: 'IT', href: '/it', variant: 'home' },
     titlePre: 'Student ',
     titleSpan: 'Check-in / Check-out',

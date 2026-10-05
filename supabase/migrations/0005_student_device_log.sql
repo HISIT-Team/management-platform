@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- NOTE: since 0017 access is decided by the role permissions (has_permission()):
+--       if you re-run this file, re-run 0017 afterwards.
 -- Student device log — one row per Student Check-in / Check-out form
 -- submitted from /modulo-student. Run this once in the Supabase SQL
 -- Editor.

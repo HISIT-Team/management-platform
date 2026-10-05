@@ -104,7 +104,7 @@ export default function OnboardingClient() {
   }
 
   return (
-    <AuthGuard roles={['hr', 'admin']}>
+    <AuthGuard roles={['hr', 'admin']} perm="hr.onboarding">
       <div className="form-page">
         <div className="form-wrap">
           <Link className="back-link" href="/employee-management-hub">

@@ -125,6 +125,12 @@ const P: Record<IconName, React.ReactNode> = {
       <polyline points="9 12 11 14 15 10" />
     </>
   ),
+  sliders: (
+    <>
+      <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3" />
+      <path d="M1 14h6M9 8h6M17 16h6" />
+    </>
+  ),
   user: (
     <>
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />

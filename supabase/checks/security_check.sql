@@ -41,7 +41,7 @@ privileged as (
   select 'Account con privilegi', coalesce(p.email, p.id::text) || ' · ' || p.role,
          'INFO',
          'Verifica che ognuno serva davvero e abbia la MFA attiva'
-  from public.profiles p where lower(coalesce(p.role, '')) in ('superadmin', 'admin', 'it')
+  from public.profiles p where lower(coalesce(p.role, '')) in ('owner', 'superadmin', 'admin', 'it')
 ),
 mfa as (
   select 'MFA attiva', u.email,
@@ -49,7 +49,7 @@ mfa as (
               then 'OK' else 'DA ATTIVARE' end,
          'Obbligatoria per Super Admin, Admin e IT'
   from auth.users u join public.profiles p on p.id = u.id
-  where lower(coalesce(p.role, '')) in ('superadmin', 'admin', 'it')
+  where lower(coalesce(p.role, '')) in ('owner', 'superadmin', 'admin', 'it')
 )
 select * from (
 select * from tables_rls

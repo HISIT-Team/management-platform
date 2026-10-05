@@ -107,7 +107,7 @@ export default function StudentQrClient() {
   }, []);
 
   return (
-    <AuthGuard roles={['it', 'admin']}>
+    <AuthGuard roles={['it', 'admin']} perm="it.checkin_student">
     <div className="form-page narrow">
       <div className="page-header">
         <div className="logo">

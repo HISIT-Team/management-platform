@@ -9,6 +9,7 @@ import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { type MfaStatus, forgetMyDevices, getMfaStatus, myTrustedDevicesCount, removeFactor } from '@/lib/mfa';
 import { trustedDeviceExpiry } from '@/lib/trustedDevice';
+import { type UiPrefs, SIZE_OPTIONS, autoZoom, readUiPrefs, saveUiPrefs } from '@/lib/uiPrefs';
 import {
   type MyProfile,
   changeMyPassword,
@@ -19,9 +20,10 @@ import {
   updateMyName,
 } from '@/lib/profile';
 
-const ALL_BUT_GUEST = ['superadmin', 'admin', 'it', 'hr', 'boarding', 'office', 'parent'];
+const ALL_BUT_GUEST = ['owner', 'superadmin', 'admin', 'it', 'hr', 'boarding', 'office', 'parent'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ROLE_LABEL: Record<string, string> = {
+  owner: 'Owner',
   superadmin: 'Super Admin',
   admin: 'Admin',
   it: 'IT',
@@ -83,6 +85,12 @@ export default function ProfileClient() {
   const [mfa, setMfa] = useState<MfaStatus | null>(null);
   const [mfaBusy, setMfaBusy] = useState(false);
   const [devCount, setDevCount] = useState(0);
+  const [ui, setUi] = useState<UiPrefs>(() => (typeof window === 'undefined' ? { size: 'auto', width: 'full' } : readUiPrefs()));
+  const changeUi = (patch: Partial<UiPrefs>) => {
+    const next = { ...ui, ...patch };
+    setUi(next);
+    saveUiPrefs(next);
+  };
   const [pwd, setPwd] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -412,6 +420,42 @@ export default function ProfileClient() {
               </section>
 
               {/* ── Password ── */}
+              {/* ── Display ── */}
+              <h2 className="section-label">Aspetto</h2>
+              <section className="hero pf-card">
+                <p className="pf-mfa-text">
+                  Valgono solo su questo browser. Con &laquo;Automatica&raquo; la piattaforma si ingrandisce da sola sugli schermi
+                  grandi (ora: {Math.round(autoZoom(typeof window === 'undefined' ? 1440 : window.innerWidth) * 100)} %).
+                </p>
+                <div className="pf-ui-label">Dimensione dell&apos;interfaccia</div>
+                <div className="pf-seg" role="radiogroup" aria-label="Dimensione dell'interfaccia">
+                  {SIZE_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={ui.size === o.value}
+                      className={ui.size === o.value ? 'on' : ''}
+                      onClick={() => changeUi({ size: o.value })}
+                    >
+                      <b>{o.label}</b>
+                      <small>{o.hint}</small>
+                    </button>
+                  ))}
+                </div>
+                <div className="pf-ui-label">Larghezza del contenuto</div>
+                <div className="pf-seg" role="radiogroup" aria-label="Larghezza del contenuto">
+                  <button type="button" role="radio" aria-checked={ui.width === 'full'} className={ui.width === 'full' ? 'on' : ''} onClick={() => changeUi({ width: 'full' })}>
+                    <b>Piena</b>
+                    <small>usa tutto lo schermo</small>
+                  </button>
+                  <button type="button" role="radio" aria-checked={ui.width === 'centered'} className={ui.width === 'centered' ? 'on' : ''} onClick={() => changeUi({ width: 'centered' })}>
+                    <b>Centrata</b>
+                    <small>colonna centrale sugli schermi larghi</small>
+                  </button>
+                </div>
+              </section>
+
               <h2 className="section-label">Password</h2>
               <section className="hero pf-card">
                 <div className="pf-row2">
@@ -523,6 +567,13 @@ export default function ProfileClient() {
 
       <style>{`
         .pf-page .pf-card { padding: 1.4rem 1.5rem; }
+        .pf-page .pf-ui-label { font-size: 12px; font-weight: 700; color: var(--b-muted); margin: 1.1rem 0 .5rem; }
+        .pf-page .pf-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+        .pf-page .pf-seg button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 11px; border: 1.5px solid var(--b-line); background: #fff; font: inherit; cursor: pointer; text-align: left; }
+        .pf-page .pf-seg button b { font-size: 13.5px; color: var(--b-ink); }
+        .pf-page .pf-seg button small { font-size: 11.5px; color: var(--b-muted); }
+        .pf-page .pf-seg button.on { border-color: var(--brand); background: var(--brand-light); }
+        .pf-page .pf-seg button.on b { color: var(--brand); }
         .pf-page .pf-identity { display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
         .pf-page .pf-avatar-wrap { position: relative; width: 104px; height: 104px; flex-shrink: 0; }
         .pf-page .pf-avatar { width: 104px; height: 104px; border-radius: 50%; object-fit: cover; display: block; box-shadow: 0 0 0 4px #fff, 0 6px 18px rgba(139, 26, 43, .18); }
