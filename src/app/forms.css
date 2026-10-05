@@ -139,7 +139,7 @@
 .form-page .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .form-page .photo-thumb .del-btn { position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.6); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .form-page .photo-thumb .del-btn svg { width: 13px; height: 13px; stroke: #fff; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.form-page .add-photo { aspect-ratio: 1; border-radius: var(--radius-md); border: 1.5px dashed var(--f-gray-200); background: var(--f-gray-50); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; gap: 5px; color: var(--f-gray-600); font-size: 12px; font-weight: 500; -webkit-tap-highlight-color: transparent; }
+.form-page .add-photo { font-family: inherit; padding: 0; width: 100%; aspect-ratio: 1; border-radius: var(--radius-md); border: 1.5px dashed var(--f-gray-200); background: var(--f-gray-50); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; gap: 5px; color: var(--f-gray-600); font-size: 12px; font-weight: 500; -webkit-tap-highlight-color: transparent; }
 .form-page .add-photo svg { width: 24px; height: 24px; stroke: var(--f-gray-600); fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Signer */

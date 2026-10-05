@@ -68,8 +68,16 @@ const OPTIONS: { value: 'Check-in' | 'Check-out'; icon: React.ReactNode; sub: (k
   },
 ];
 
+/* Two tiles: "Camera" opens the camera directly (capture="environment" —
+   on Android a plain multi-file input only offers the gallery / Google
+   Photos), "Gallery" picks existing photos, several at once. */
 function PhotoGrid({ photos, onAdd, onDelete }: { photos: string[]; onAdd: (files: FileList) => void; onDelete: (i: number) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const handle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length) onAdd(e.target.files);
+    e.target.value = '';
+  };
   return (
     <div className="photo-grid" style={{ marginTop: 0 }}>
       {photos.map((src, i) => (
@@ -85,25 +93,25 @@ function PhotoGrid({ photos, onAdd, onDelete }: { photos: string[]; onAdd: (file
         </div>
       ))}
       {photos.length < 10 && (
-        <div className="add-photo" onClick={() => inputRef.current?.click()}>
-          <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-            <line x1="12" y1="11" x2="12" y2="17" />
-            <line x1="9" y1="14" x2="15" y2="14" />
-          </svg>
-          Add
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              if (e.target.files) onAdd(e.target.files);
-              e.target.value = '';
-            }}
-          />
-        </div>
+        <>
+          <button type="button" className="add-photo" onClick={() => cameraRef.current?.click()}>
+            <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+            Camera
+          </button>
+          <button type="button" className="add-photo" onClick={() => galleryRef.current?.click()}>
+            <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            Gallery
+          </button>
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handle} />
+          <input ref={galleryRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handle} />
+        </>
       )}
     </div>
   );
