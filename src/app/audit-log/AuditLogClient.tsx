@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { type AuditEntry, AUDIT_ACTIONS, listAudit, roleMeta } from '@/lib/users';
+import { asLocalDate, exportExcel } from '@/lib/excel';
 
 const IconLog = (
   <svg viewBox="0 0 24 24">
@@ -100,6 +101,28 @@ export default function AuditLogClient() {
     [rows, action, q],
   );
 
+  const [exporting, setExporting] = useState(false);
+  async function handleExport() {
+    if (!visible.length) return;
+    setExporting(true);
+    try {
+      await exportExcel(
+        'registro-attivita',
+        'Registro attività',
+        [
+          { header: 'Data', type: 'datetime', width: 17, value: (e) => asLocalDate(e.created_at) },
+          { header: 'Azione', width: 26, value: (e) => AUDIT_ACTIONS[e.action] ?? e.action },
+          { header: 'Eseguita da', width: 32, value: (e) => e.actor_email ?? '' },
+          { header: 'Oggetto', width: 32, value: (e) => e.target_label ?? e.target_id ?? '' },
+          { header: 'Dettaglio', width: 60, value: (e) => describe(e) },
+        ],
+        visible,
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <AuthGuard roles={['superadmin']}>
       <Topbar label="Gestione Backend" href="/backend" variant="back" />
@@ -116,6 +139,14 @@ export default function AuditLogClient() {
                 <p>Chi ha cambiato ruoli, modificato o eliminato utenti e record — in sola lettura</p>
               </div>
             </div>
+            <button className="ui-btn excel" onClick={handleExport} disabled={exporting || !visible.length}>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <path d="M12 15V3" />
+                </svg>
+              Esporta Excel
+            </button>
           </div>
 
           {error ? (

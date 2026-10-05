@@ -105,7 +105,9 @@ export default function DeviceHistoryClient() {
   const [rows, setRows] = useState<StudentDeviceLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [query, setQuery] = useState('');
+  // ?q=… comes from the search box in the app shell's top bar. (This
+  // component renders only after AuthGuard, i.e. in the browser.)
+  const [query, setQuery] = useState(() => (typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('q') ?? ''));
   const [op, setOp] = useState<OpFilter>('all');
   const [school, setSchool] = useState('all');
   const [limit, setLimit] = useState(PAGE);
@@ -127,6 +129,13 @@ export default function DeviceHistoryClient() {
     }
     setBusy(false);
   };
+
+  // A new search from the top bar while already on this page.
+  useEffect(() => {
+    const onSearch = (e: Event) => setQuery(String((e as CustomEvent<string>).detail ?? ''));
+    window.addEventListener('his:search', onSearch);
+    return () => window.removeEventListener('his:search', onSearch);
+  }, []);
 
   // Escape closes the confirmation dialog.
   useEffect(() => {

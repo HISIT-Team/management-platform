@@ -10,6 +10,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getCurrentUser, loadProfile, profileName } from '@/lib/auth';
+import { asLocalDate, exportExcel } from '@/lib/excel';
 import {
   NEUTRAL,
   PRIORITIES,
@@ -878,6 +879,36 @@ export default function TaskManagerClient() {
   /* ── Render ──────────────────────────────────────────────────── */
   const visibleStatuses = fStatus === 'all' ? STATUSES : STATUSES.filter((s) => s.value === fStatus);
 
+  // Excel: the tasks currently shown (filters applied).
+  async function handleExport() {
+    if (!filtered.length) return showToast('Nessuna task da esportare.', true);
+    try {
+      const n = await exportExcel(
+        'task-manager',
+        'Task',
+        [
+          { header: 'Titolo', width: 40, value: (t) => t.title },
+          { header: 'Stato', width: 14, value: (t) => statusMeta(t.status).label },
+          { header: 'Priorità', width: 10, value: (t) => priorityMeta(t.priority).label },
+          { header: 'Gruppo', width: 22, value: (t) => (t.group_id ? groupById.get(t.group_id)?.name ?? '' : '') },
+          { header: 'Assegnatari', width: 34, value: (t) => (t.assignee_ids ?? []).map((id) => memberById.get(id)?.full_name).filter(Boolean).join(', ') },
+          { header: 'Inizio', type: 'date', width: 12, value: (t) => asLocalDate(t.start_date) },
+          { header: 'Scadenza', type: 'date', width: 12, value: (t) => asLocalDate(t.due_date) },
+          { header: 'Ore stimate', type: 'number', width: 11, value: (t) => t.estimated_hours ?? '' },
+          { header: 'Sotto-task', width: 11, value: (t) => { const subs = subsByTask.get(t.id) ?? []; return subs.length ? `${subs.filter((x) => x.status === 'completed').length}/${subs.length}` : ''; } },
+          { header: 'Descrizione', width: 50, value: (t) => t.description ?? '' },
+          { header: 'Note', width: 40, value: (t) => t.notes ?? '' },
+          { header: 'Completata il', type: 'datetime', width: 17, value: (t) => asLocalDate(t.completed_at) },
+          { header: 'Creata da', width: 22, value: (t) => t.created_by_name ?? '' },
+        ],
+        filtered,
+      );
+      showToast(`Excel creato ✓ — ${n} task`);
+    } catch (e) {
+      showToast('Export non riuscito: ' + (e as Error).message, true);
+    }
+  }
+
   return (
     <AuthGuard roles={['admin']}>
       <Topbar label="IT" href="/it" variant="back" />
@@ -896,6 +927,14 @@ export default function TaskManagerClient() {
               </div>
             </div>
             <div className="t-head-actions">
+              <button className="ui-btn excel" onClick={handleExport} disabled={loading}>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <path d="M12 15V3" />
+                </svg>
+                Excel
+              </button>
               <button className="btn-quiet" onClick={() => setGroupsOpen(true)}>
                 {IconFolders}
                 Gruppi

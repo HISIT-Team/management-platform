@@ -3,6 +3,7 @@ import './globals.css';
 import './forms.css';
 import './budget.css';
 import './tasks.css';
+import './shell.css';
 import IdleWatcher from '@/components/IdleWatcher';
 
 export const metadata: Metadata = {
@@ -25,6 +26,11 @@ export const viewport: Viewport = {
   themeColor: '#8B1A2B',
   width: 'device-width',
   initialScale: 1,
+  // No pinch / double-tap zoom on phones: it made vertical scrolling drift
+  // sideways. Together with `touch-action: pan-x pan-y` in shell.css.
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

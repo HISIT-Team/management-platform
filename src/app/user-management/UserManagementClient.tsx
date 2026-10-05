@@ -10,6 +10,7 @@ import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getCurrentUser } from '@/lib/auth';
 import { type PlatformUser, ROLES, deleteUser, listUsers, resetUserMfa, roleMeta, updateUser } from '@/lib/users';
+import { asLocalDate, exportExcel } from '@/lib/excel';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
 const IconUsers = (
@@ -198,6 +199,30 @@ export default function UserManagementClient() {
     setBusy(false);
   };
 
+  async function handleExport() {
+    if (!visible.length) return;
+    try {
+      const n = await exportExcel(
+        'utenti-piattaforma',
+        'Utenti',
+        [
+          { header: 'Email', width: 34, value: (u) => u.email },
+          { header: 'Nome', width: 18, value: (u) => u.first_name ?? '' },
+          { header: 'Cognome', width: 20, value: (u) => u.last_name ?? '' },
+          { header: 'Ruolo', width: 16, value: (u) => roleMeta(u.role).label },
+          { header: 'MFA', width: 8, value: (u) => (u.mfa_enabled ? 'Sì' : 'No') },
+          { header: 'Email confermata', width: 16, value: (u) => (u.email_confirmed_at ? 'Sì' : 'No') },
+          { header: 'Creato il', type: 'datetime', width: 17, value: (u) => asLocalDate(u.created_at) },
+          { header: 'Ultimo accesso', type: 'datetime', width: 17, value: (u) => asLocalDate(u.last_sign_in_at) },
+        ],
+        visible,
+      );
+      showToast(`Excel creato ✓ — ${n} utenti`);
+    } catch (e) {
+      showToast('Export non riuscito: ' + (e as Error).message, true);
+    }
+  }
+
   return (
     <AuthGuard roles={['superadmin']}>
       <Topbar label="Gestione Backend" href="/backend" variant="back" />
@@ -215,10 +240,20 @@ export default function UserManagementClient() {
                 <p>Tutti gli account della piattaforma, i loro ruoli e i dati del profilo</p>
               </div>
             </div>
-            <button className="btn-quiet" onClick={load} disabled={loading}>
-              {IconRefresh}
-              Aggiorna
-            </button>
+            <div className="list-actions">
+              <button className="btn-quiet" onClick={load} disabled={loading}>
+                {IconRefresh}
+                Aggiorna
+              </button>
+              <button className="ui-btn excel" onClick={handleExport} disabled={loading || !visible.length}>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <path d="M12 15V3" />
+                </svg>
+                Esporta Excel
+              </button>
+            </div>
           </div>
 
           {error ? (

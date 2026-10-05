@@ -1,9 +1,13 @@
 'use client';
-/* Fixed glass topbar: a home/back link on the left, Sign out on the right. */
+/* Back / home link of a page.
+   Inside the app shell it is a small breadcrumb link above the page
+   content (sign out lives in the sidebar). Outside the shell it keeps the
+   original fixed glass bar with Sign out. */
 import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOutUser } from '@/lib/auth';
+import { useShell } from './AppShell';
 
 interface TopbarProps {
   label: string;
@@ -13,6 +17,7 @@ interface TopbarProps {
 
 export default function Topbar({ label, href, variant = 'home' }: TopbarProps) {
   const router = useRouter();
+  const { inShell } = useShell();
 
   async function handleSignOut() {
     try {
@@ -21,6 +26,21 @@ export default function Topbar({ label, href, variant = 'home' }: TopbarProps) {
       /* ignore */
     }
     router.push('/');
+  }
+
+  if (inShell) {
+    // The dashboard is one click away in the sidebar: no "‹ Home" crumb.
+    if (href === '/') return null;
+    return (
+      <nav className="pg-crumb" aria-label="Breadcrumb">
+        <Link href={href}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {label}
+        </Link>
+      </nav>
+    );
   }
 
   return (

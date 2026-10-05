@@ -11,6 +11,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getCurrentUser, loadProfile, profileName } from '@/lib/auth';
+import { asLocalDate, exportExcel } from '@/lib/excel';
 import {
   type BudgetLine,
   type Expense,
@@ -203,6 +204,32 @@ export default function BudgetClient({ school }: { school: School }) {
   );
   const visibleTotal = useMemo(() => visible.reduce((s, e) => s + e.amount, 0), [visible]);
 
+  // Excel: the expenses shown (all, or the selected budget line), oldest first.
+  async function handleExport() {
+    if (!visible.length) return showToast('Nessuna spesa da esportare.', true);
+    try {
+      const rows = visible.slice().sort((a, b) => a.spent_on.localeCompare(b.spent_on));
+      const n = await exportExcel(
+        `budget-it_${school.code}${filter === 'all' ? '' : '_' + filter}`,
+        `Budget ${school.name}`,
+        [
+          { header: 'Data', type: 'date', width: 12, value: (e) => asLocalDate(e.spent_on) },
+          { header: 'Commessa', width: 34, value: (e) => lineByCode(school, e.budget_code)?.name ?? e.budget_code },
+          { header: 'Descrizione', width: 44, value: (e) => e.description },
+          { header: 'Fornitore', width: 24, value: (e) => e.supplier ?? '' },
+          { header: 'Importo', type: 'euro', width: 14, value: (e) => e.amount },
+          { header: 'Note', width: 36, value: (e) => e.notes ?? '' },
+          { header: 'Inserita da', width: 24, value: (e) => e.created_by_name ?? '' },
+          { header: 'Inserita il', type: 'datetime', width: 17, value: (e) => asLocalDate(e.created_at) },
+        ],
+        rows,
+      );
+      showToast(`Excel creato ✓ — ${n} ${n === 1 ? 'spesa' : 'spese'}`);
+    } catch (e) {
+      showToast('Export non riuscito: ' + (e as Error).message, true);
+    }
+  }
+
   function openForm(code?: string) {
     setFCode(code || lines[0]?.code || '');
     setFDesc('');
@@ -286,10 +313,20 @@ export default function BudgetClient({ school }: { school: School }) {
                 </p>
               </div>
             </div>
-            <button className="btn-primary" onClick={() => openForm()}>
-              {IconPlus}
-              Nuova spesa
-            </button>
+            <div className="b-head-actions">
+              <button className="ui-btn excel" onClick={handleExport} disabled={loading}>
+                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <path d="M12 15V3" />
+                </svg>
+                {filter === 'all' ? 'Esporta Excel' : 'Esporta Excel (filtrate)'}
+              </button>
+              <button className="btn-primary" onClick={() => openForm()}>
+                {IconPlus}
+                Nuova spesa
+              </button>
+            </div>
           </div>
 
           {setupError ? (
