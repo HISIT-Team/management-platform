@@ -6,6 +6,7 @@ import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import SignaturePad, { type SignaturePadHandle } from '@/components/SignaturePad';
 import QrScanner from '@/components/QrScanner';
+import AssetIdField from '@/components/AssetIdField';
 import { useToast } from '@/components/useToast';
 import { compressImage } from '@/lib/image';
 import { submitForm } from '@/lib/auth';
@@ -500,7 +501,13 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                           <div className="device-detail-name">{dev}</div>
                           <div className="device-field">
                             <label>Asset ID</label>
-                            <input type="text" placeholder="Serial number or asset ID" value={st.assetId} onChange={(e) => setState(dev, { assetId: e.target.value })} />
+                            <AssetIdField
+                              value={st.assetId}
+                              placeholder="Type the ID or scan the QR"
+                              onChange={(v) => setState(dev, { assetId: v })}
+                              onError={(m) => showToast(m, true)}
+                              onScanned={(id) => showToast(`${dev}: asset ID ${id} ✓`)}
+                            />
                           </div>
                           {photos && (
                             <>
