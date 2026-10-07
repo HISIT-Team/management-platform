@@ -31,8 +31,6 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'boarding.rooms', label: 'Assegnazione camere', desc: 'Form e registri camere', group: 'Boarding', sub: true },
   { key: 'office', label: 'Sezione Student Office', desc: 'Pagina Student Office', group: 'Student Office' },
   { key: 'vi.budget', label: 'Budget e commesse', desc: 'Spese, nuove commesse e stanziamenti di H-IS Vicenza', group: 'H-IS Vicenza' },
-  { key: 'vi.purchases', label: 'Purchases — richieste', desc: 'Inviare richieste di acquisto e vedere le proprie', group: 'H-IS Vicenza' },
-  { key: 'vi.purchases_admin', label: 'Purchases — tutte le richieste', desc: 'Vedere ed esportare le richieste di tutti', group: 'H-IS Vicenza', sub: true },
   { key: 'ro.budget', label: 'Budget e commesse', desc: 'Spese, nuove commesse e stanziamenti di H-IS Rosà', group: 'H-IS Rosà' },
 ];
 

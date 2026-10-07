@@ -104,7 +104,6 @@ export const NAV: NavGroup[] = [
       { label: 'Student Office', href: '/student-office', icon: 'file', roles: ['office', 'admin'], perm: 'office', company: 'venezia' },
       // H-IS Vicenza
       { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet', roles: ['office.hvi', 'admin'], perm: 'vi.budget', company: 'vicenza' },
-      { label: 'Purchases', href: '/purchases', icon: 'cart', roles: ['office.hvi', 'teachers.hvi', 'admin'], perm: 'vi.purchases', company: 'vicenza' },
       // H-IS Rosà
       { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet', roles: ['office.hro', 'admin'], perm: 'ro.budget', company: 'rosa' },
     ],

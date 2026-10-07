@@ -1,24 +1,19 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- Three companies (H-IS Venezia, Vicenza, Rosà), new roles, budget
--- lines in the database, Purchases (Vicenza).
+-- lines in the database. (Purchases was removed: see 0019.)
 -- Run once in the Supabase SQL Editor, AFTER 0017. Rieseguibile.
 --
 -- 1. New roles: teachers.hvi, office.hvi (H-IS Vicenza),
 --    teachers.hro, office.hro (H-IS Rosà). Owner / Super Admin / Admin
 --    see every company; the existing roles keep H-IS Venezia.
 -- 2. New permissions: vi.budget, ro.budget (budget of Vicenza / Rosà),
---    vi.purchases (send purchase requests), vi.purchases_admin (see all
---    requests). it.budget stays the Venezia budget (section IT).
---    Defaults: office.hvi → vi.budget, vi.purchases, vi.purchases_admin;
---    teachers.hvi → vi.purchases; office.hro → ro.budget;
---    teachers.hro → nothing; admin → everything.
+--    it.budget stays the Venezia budget (section IT).
+--    Defaults: office.hvi → vi.budget; office.hro → ro.budget;
+--    teachers.hvi, teachers.hro → nothing; admin → everything.
 -- 3. Budget lines ("commesse") move from the code to the table
 --    budget_lines: a new line can be created and its allocation raised
 --    or lowered from the page; every change is kept in
 --    budget_adjustments and in the activity log.
--- 4. Purchases: purchase_requests keeps every request (single or
---    multiple items). The request also goes to Power Automate through
---    the submit-form Edge Function (secret WEBHOOK_PURCHASE_VICENZA).
 -- ═══════════════════════════════════════════════════════════════════
 
 -- ─── 1. Roles ──────────────────────────────────────────────────────
@@ -54,16 +49,15 @@ as $$
     'hr', 'hr.onboarding', 'hr.offboarding', 'hr.registries',
     'boarding', 'boarding.rooms',
     'office',
-    'vi.budget', 'vi.purchases', 'vi.purchases_admin',
+    'vi.budget',
     'ro.budget'
   ];
 $$;
 
 insert into public.role_permissions (role, perm)
 select r, p from (values
-  ('admin', 'vi.budget'), ('admin', 'vi.purchases'), ('admin', 'vi.purchases_admin'), ('admin', 'ro.budget'),
-  ('office.hvi', 'vi.budget'), ('office.hvi', 'vi.purchases'), ('office.hvi', 'vi.purchases_admin'),
-  ('teachers.hvi', 'vi.purchases'),
+  ('admin', 'vi.budget'), ('admin', 'ro.budget'),
+  ('office.hvi', 'vi.budget'),
   ('office.hro', 'ro.budget')
 ) as d(r, p)
 on conflict (role, perm) do nothing;
@@ -282,59 +276,15 @@ begin
 end;
 $$;
 
--- ─── 4. Purchases (H-IS Vicenza) ───────────────────────────────────
-create table if not exists public.purchase_requests (
-  id              uuid primary key default gen_random_uuid(),
-  school          text not null default 'vicenza' check (school in ('venezia', 'vicenza', 'rosa')),
-  kind            text not null check (kind in ('single', 'multiple')),
-  requester_first text not null check (length(btrim(requester_first)) between 1 and 80),
-  requester_last  text not null check (length(btrim(requester_last)) between 1 and 80),
-  requester_email text not null check (length(requester_email) between 3 and 200),
-  items           jsonb not null check (jsonb_typeof(items) = 'array' and jsonb_array_length(items) between 1 and 50),
-  total           numeric(14,2) not null default 0,
-  notes           text check (notes is null or length(notes) <= 2000),
-  status          text not null default 'pending' check (status in ('pending', 'sent', 'not_sent')),
-  created_by      uuid not null default auth.uid() references auth.users (id) on delete cascade,
-  created_at      timestamptz not null default now()
-);
-create index if not exists purchase_requests_created_idx on public.purchase_requests (school, created_at desc);
-create index if not exists purchase_requests_owner_idx on public.purchase_requests (created_by, created_at desc);
-
-alter table public.purchase_requests enable row level security;
-drop policy if exists purchase_requests_select on public.purchase_requests;
-create policy purchase_requests_select on public.purchase_requests
-  for select to authenticated using (
-    (created_by = auth.uid() and public.has_permission('vi.purchases'))
-    or public.has_permission('vi.purchases_admin')
-  );
-drop policy if exists purchase_requests_insert on public.purchase_requests;
-create policy purchase_requests_insert on public.purchase_requests
-  for insert to authenticated with check (
-    public.has_permission('vi.purchases') and created_by = auth.uid() and status = 'pending' and school = 'vicenza'
-  );
-revoke update, delete on public.purchase_requests from anon, authenticated;
-
--- After the webhook call: mark my request as sent / not sent.
-create or replace function public.purchase_mark_sent(p_id uuid, p_ok boolean)
-returns void
-language sql
-security definer
-set search_path = public
-as $$
-  update public.purchase_requests
-     set status = case when p_ok then 'sent' else 'not_sent' end
-   where id = p_id and created_by = auth.uid() and status = 'pending';
-$$;
-
 -- ─── Grants ────────────────────────────────────────────────────────
 revoke execute on function
   public.school_budget_perm(text), public.my_display_name(),
   public.budget_create_line(text, text, text, numeric, text, text), public.budget_adjust_line(text, text, numeric, text),
-  public.budget_archive_line(text, text), public.purchase_mark_sent(uuid, boolean)
+  public.budget_archive_line(text, text)
 from public, anon;
 grant execute on function
   public.school_budget_perm(text), public.my_display_name(),
   public.budget_create_line(text, text, text, numeric, text, text), public.budget_adjust_line(text, text, numeric, text),
-  public.budget_archive_line(text, text), public.purchase_mark_sent(uuid, boolean),
+  public.budget_archive_line(text, text),
   public.platform_roles(), public.configurable_roles(), public.permission_keys()
 to authenticated;

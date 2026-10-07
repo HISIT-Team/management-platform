@@ -1,7 +1,7 @@
 'use client';
 /* Home dashboard (inside the app shell), for the company being viewed.
    H-IS Venezia: device KPIs and movements (IT), budget, tasks.
-   H-IS Vicenza: budget and purchase requests. H-IS Rosà: budget.
+   H-IS Vicenza and H-IS Rosà: budget.
    Everything follows the role's permissions (Permessi ruoli). Right
    after login, a user with more than one company picks it first. */
 import React, { useEffect, useState } from 'react';
@@ -23,7 +23,6 @@ import {
 } from '@/lib/dashboard';
 import { BUDGET_PERM } from '@/lib/budgets';
 import { type Company, companyPickPending, dismissCompanyPick, setCompany } from '@/lib/companies';
-import { type PurchaseRequest, listPurchases } from '@/lib/purchases';
 
 const eur0 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' } as Intl.NumberFormatOptions);
 
@@ -40,11 +39,8 @@ const SECTION_META: Record<string, { desc: string; color: string; soft: string }
   '/hr-registry-hub': { desc: 'Registri di onboarding e offboarding', color: '#6A3E8A', soft: '#F1EAF7' },
   '/budget-management/vicenza': { desc: 'Commesse, spese e stanziamenti', color: '#3C5A8A', soft: '#E8EEF7' },
   '/budget-management/rosa': { desc: 'Commesse, spese e stanziamenti', color: '#2F6E5B', soft: '#E6F2EC' },
-  '/purchases': { desc: 'Purchase requests — single or multiple items', color: '#9A5B00', soft: '#FFF3E4' },
   '/role-permissions': { desc: 'Cosa può vedere ogni ruolo', color: '#5B1220', soft: '#F3E3E6' },
 };
-
-const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', useGrouping: 'always' } as Intl.NumberFormatOptions);
 
 /** The first page after login when the user can open several companies. */
 function CompanyPicker({ companies, onPick }: { companies: Company[]; onPick: () => void }) {
@@ -129,8 +125,6 @@ export default function Dashboard() {
   const canStudentForm = onVe && allows(access, 'it.checkin_student', ['it', 'admin']);
   const canBudget = allows(access, BUDGET_PERM[co] ?? 'it.budget', co === 'vicenza' ? ['office.hvi', 'admin'] : co === 'rosa' ? ['office.hro', 'admin'] : ['admin']);
   const canTasks = onVe && allows(access, 'it.tasks', ['admin']);
-  const canPurchases = co === 'vicenza' && allows(access, 'vi.purchases', ['office.hvi', 'teachers.hvi', 'admin']);
-  const canAllPurchases = co === 'vicenza' && allows(access, 'vi.purchases_admin', ['office.hvi', 'admin']);
   const canOnboarding = onVe && allows(access, 'hr.onboarding', ['hr', 'admin']);
   const canOffboarding = onVe && allows(access, 'hr.offboarding', ['hr', 'admin']);
   const isHr = canOnboarding || canOffboarding;
@@ -140,7 +134,6 @@ export default function Dashboard() {
   const [moves, setMoves] = useState<RecentMove[] | null>(null);
   const [budget, setBudget] = useState<BudgetSummary[] | null>(null);
   const [tasks, setTasks] = useState<TaskSummary | null>(null);
-  const [purchases, setPurchases] = useState<PurchaseRequest[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -155,14 +148,13 @@ export default function Dashboard() {
       }
       if (canBudget) jobs.push(loadSchoolBudget(co).then((v) => active && setBudget(v)));
       if (canTasks && data.user) jobs.push(loadTaskSummary(data.user.id).then((v) => active && setTasks(v)));
-      if (canPurchases) jobs.push(listPurchases(200).then((v) => active && setPurchases(v), () => active && setPurchases(null)));
       await Promise.allSettled(jobs);
       if (active) setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [picking, co, isIt, canBudget, canTasks, canPurchases]);
+  }, [picking, co, isIt, canBudget, canTasks]);
 
   if (picking) return <CompanyPicker companies={companies} onPick={() => setPicking(false)} />;
 
@@ -175,8 +167,6 @@ export default function Dashboard() {
 
   const budAlloc = (budget ?? []).reduce((t, b) => t + b.allocated, 0);
   const budSpent = (budget ?? []).reduce((t, b) => t + b.spent, 0);
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
-  const monthReqs = (purchases ?? []).filter((r) => new Date(r.created_at).getTime() >= monthStart);
   const budgetHref = `/budget-management/${co}`;
 
   const budgetCard = budget ? (
@@ -297,76 +287,7 @@ export default function Dashboard() {
     </section>
   ) : null;
 
-  const purchasesCard = canPurchases ? (
-    <section className="db-card" style={{ overflow: 'hidden' }}>
-      <div className="db-sec-head">
-        <div>
-          <h2>{canAllPurchases ? 'Latest purchase requests' : 'My purchase requests'}</h2>
-          <p>H-IS Vicenza · Purchases</p>
-        </div>
-        <Link href="/purchases">View all</Link>
-      </div>
-      {purchases === null ? (
-        <div className="db-empty">{loading ? 'Loading…' : 'Requests not available.'}</div>
-      ) : purchases.length === 0 ? (
-        <div className="db-empty">No purchase requests yet.</div>
-      ) : (
-        <>
-          <div className="db-table-wrap">
-            <table className="db-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Requested by</th>
-                  <th>Items</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {purchases.slice(0, 6).map((r) => (
-                  <tr key={r.id}>
-                    <td>{when(r.created_at)}</td>
-                    <td>
-                      {r.requester_first} {r.requester_last}
-                    </td>
-                    <td style={{ whiteSpace: 'normal' }}>
-                      {r.items[0]?.name}
-                      {r.items.length > 1 ? ` +${r.items.length - 1}` : ''}
-                    </td>
-                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{eur.format(r.total)}</td>
-                    <td>
-                      <span className={'ui-chip ' + (r.status === 'sent' ? 'ok' : r.status === 'not_sent' ? 'warn' : 'muted')}>
-                        {r.status === 'sent' ? 'Sent' : r.status === 'not_sent' ? 'Not sent' : 'Pending'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="db-list">
-            {purchases.slice(0, 6).map((r) => (
-              <div className="db-list-row" key={r.id}>
-                <div>
-                  <b>
-                    {r.items[0]?.name}
-                    {r.items.length > 1 ? ` +${r.items.length - 1}` : ''}
-                  </b>
-                  <small>
-                    {r.requester_first} {r.requester_last} · {eur.format(r.total)}
-                  </small>
-                </div>
-                <span className={'ui-chip ' + (r.status === 'sent' ? 'ok' : 'warn')}>{r.status === 'sent' ? 'Sent' : 'Not sent'}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </section>
-  ) : null;
-
-  const left = movesCard ?? purchasesCard;
+  const left = movesCard;
   const right = budgetCard || tasksCard ? (
     <div className="db-col">
       {budgetCard}
@@ -434,15 +355,9 @@ export default function Dashboard() {
               </Link>
             ) : null}
             {!onVe && canBudget ? (
-              <Link className={'ui-btn' + (canPurchases ? '' : ' primary')} href={budgetHref}>
+              <Link className="ui-btn primary" href={budgetHref}>
                 <Icon name="wallet" size={17} />
                 Budget
-              </Link>
-            ) : null}
-            {canPurchases ? (
-              <Link className="ui-btn primary" href="/purchases/new">
-                <Icon name="cart" size={17} />
-                New purchase request
               </Link>
             ) : null}
           </div>
@@ -500,8 +415,8 @@ export default function Dashboard() {
           ) : null
         ) : null}
 
-        {!onVe && (canBudget || canPurchases) ? (
-          loading && !budget && !purchases ? (
+        {!onVe && canBudget ? (
+          loading && !budget ? (
             <div className="db-kpis">
               <div className="db-skel" />
               <div className="db-skel" />
@@ -529,13 +444,6 @@ export default function Dashboard() {
                     <div className="db-kpi-sub">{budAlloc - budSpent < 0 ? 'Budget superato' : 'residuo'}</div>
                   </div>
                 </>
-              ) : null}
-              {purchases ? (
-                <div className="db-card db-kpi">
-                  <div className="db-kpi-top">Purchase requests · this month</div>
-                  <div className="db-kpi-val">{monthReqs.length}</div>
-                  <div className="db-kpi-sub">{eur.format(monthReqs.reduce((t, r) => t + r.total, 0))} requested</div>
-                </div>
               ) : null}
             </div>
           )

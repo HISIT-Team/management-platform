@@ -63,7 +63,7 @@ export function companiesFor(a: Access): Company[] {
 /** Company a page belongs to (null = shared pages: dashboard, profile, backend…). */
 export function companyOfPath(pathname: string): CompanyId | null {
   const p = pathname.replace(/\/+$/, '');
-  if (p.startsWith('/budget-management/vicenza') || p.startsWith('/purchases')) return 'vicenza';
+  if (p.startsWith('/budget-management/vicenza')) return 'vicenza';
   if (p.startsWith('/budget-management/rosa')) return 'rosa';
   if (
     /^\/(it|hr|boarding|student-office|budget-management\/venezia|device-history|task-manager|modulo-student|modulo-employee|qr|onboarding|employee-management|room-assignment|student-checkinout-hub|employee-checkinout-hub|it-registries-hub|hr-registry-hub|employee-management-hub|room-assignment-hub)(\/|$)/.test(p)
