@@ -14,6 +14,11 @@ export interface StudentDeviceLogEntry {
   ipad_id: string | null;
   signed_by: string | null;
   signature: string | null;
+  /** Charger included in the delivery / return (migration 0021). */
+  macbook_charger: boolean;
+  ipad_charger: boolean;
+  macbook_cable: boolean;
+  ipad_cable: boolean;
 }
 
 /* Shrinks the signature for storage: white background, 480px wide,
@@ -45,7 +50,14 @@ export function compactSignature(pngDataUrl: string, width = 480, quality = 0.7,
 }
 
 export async function logStudentDevice(entry: StudentDeviceLogEntry): Promise<void> {
-  const { error } = await getSupabase().from('student_device_log').insert(entry);
+  const sb = getSupabase();
+  let { error } = await sb.from('student_device_log').insert(entry);
+  if (error && /charger|cable/.test(error.message)) {
+    // Migration 0021 not run yet: save the record without chargers and cables.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { macbook_charger, ipad_charger, macbook_cable, ipad_cable, ...rest } = entry;
+    ({ error } = await sb.from('student_device_log').insert(rest));
+  }
   if (error) throw new Error(error.message);
 }
 
@@ -60,22 +72,49 @@ export interface StudentDeviceLogRow {
   macbook_id: string | null;
   ipad_id: string | null;
   signed_by: string | null;
+  /** null = not recorded (records saved before migration 0021). */
+  macbook_charger: boolean | null;
+  ipad_charger: boolean | null;
+  macbook_cable: boolean | null;
+  ipad_cable: boolean | null;
 }
+
+/** Chargers and cables kept in the history (migration 0021). */
+export const ACCESSORIES = [
+  { key: 'macbook_charger', device: 'MacBook', label: 'Caricatore', tile: 'MacBook Charger' },
+  { key: 'macbook_cable', device: 'MacBook', label: 'Cavo', tile: 'MacBook Cable' },
+  { key: 'ipad_charger', device: 'iPad', label: 'Caricatore', tile: 'iPad Charger' },
+  { key: 'ipad_cable', device: 'iPad', label: 'Cavo', tile: 'iPad Cable' },
+] as const;
+export type AccessoryKey = (typeof ACCESSORIES)[number]['key'];
 
 /* Loads the whole history, newest first, WITHOUT the signature column.
    Supabase caps a single response at 1000 rows, so it pages. */
+const COLS = 'id, created_at, operation, student_email, school, macbook_id, ipad_id, signed_by, macbook_charger, ipad_charger, macbook_cable, ipad_cable';
+const COLS_OLD = 'id, created_at, operation, student_email, school, macbook_id, ipad_id, signed_by';
+
 export async function listStudentDeviceLog(): Promise<StudentDeviceLogRow[]> {
+  try {
+    return await listWith(COLS);
+  } catch (e) {
+    // Before migration 0021 the charger columns don't exist yet.
+    if (/charger|cable/.test((e as Error).message)) return listWith(COLS_OLD);
+    throw e;
+  }
+}
+
+async function listWith(cols: string): Promise<StudentDeviceLogRow[]> {
   const sb = getSupabase();
   const PAGE = 1000;
   const out: StudentDeviceLogRow[] = [];
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await sb
       .from('student_device_log')
-      .select('id, created_at, operation, student_email, school, macbook_id, ipad_id, signed_by')
+      .select(cols)
       .order('created_at', { ascending: false })
       .range(from, from + PAGE - 1);
     if (error) throw new Error(error.message);
-    out.push(...((data ?? []) as StudentDeviceLogRow[]));
+    out.push(...((data ?? []) as unknown as StudentDeviceLogRow[]));
     if (!data || data.length < PAGE) break;
   }
   return out;
@@ -99,7 +138,10 @@ export async function deleteStudentDeviceLog(id: string): Promise<void> {
 export const SCHOOLS = ['H-INTERNATIONAL SCHOOL SRL', 'H-INTERNATIONAL SCHOOL VICENZA SRL', 'H-INTERNATIONAL SCHOOL ROSÀ SRL'];
 export const SIGNERS = ['Student', 'Parent', 'IT Support'];
 
-export type DeviceLogChanges = Pick<StudentDeviceLogRow, 'created_at' | 'operation' | 'student_email' | 'school' | 'macbook_id' | 'ipad_id' | 'signed_by'>;
+export type DeviceLogChanges = Pick<
+  StudentDeviceLogRow,
+  'created_at' | 'operation' | 'student_email' | 'school' | 'macbook_id' | 'ipad_id' | 'signed_by' | AccessoryKey
+>;
 
 /* Edits one record (migration 0020). The signature can't be changed;
    the change is written to the activity log. */
@@ -113,12 +155,16 @@ export async function updateStudentDeviceLog(id: string, c: DeviceLogChanges): P
     p_macbook_id: c.macbook_id ?? '',
     p_ipad_id: c.ipad_id ?? '',
     p_signed_by: c.signed_by,
+    p_macbook_charger: c.macbook_charger,
+    p_ipad_charger: c.ipad_charger,
+    p_macbook_cable: c.macbook_cable,
+    p_ipad_cable: c.ipad_cable,
   });
   if (error) {
     if (/device_log_update/.test(error.message) && /(not find|does not exist|schema cache)/i.test(error.message))
-      throw new Error('Modifica non disponibile: esegui la migrazione 0020 in Supabase.');
+      throw new Error('Modifica non disponibile: esegui le migrazioni 0020 e 0021 in Supabase.');
     throw new Error(error.message);
   }
   const r = data as StudentDeviceLogRow & { signature?: unknown };
-  return { id: r.id, created_at: r.created_at, operation: r.operation, student_email: r.student_email, school: r.school, macbook_id: r.macbook_id, ipad_id: r.ipad_id, signed_by: r.signed_by };
+  return { id: r.id, created_at: r.created_at, operation: r.operation, student_email: r.student_email, school: r.school, macbook_id: r.macbook_id, ipad_id: r.ipad_id, signed_by: r.signed_by, macbook_charger: r.macbook_charger, ipad_charger: r.ipad_charger, macbook_cable: r.macbook_cable, ipad_cable: r.ipad_cable };
 }

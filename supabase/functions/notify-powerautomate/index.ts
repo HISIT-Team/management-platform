@@ -67,6 +67,10 @@ function sanitize(b: Record<string, unknown>): Record<string, unknown> | null {
   };
   for (const [k, max] of Object.entries(STR_FIELDS)) out[k] = str(b[k], max);
 
+  out.macbook_charger = b.macbook_charger === true;
+  out.ipad_charger = b.ipad_charger === true;
+  out.macbook_cable = b.macbook_cable === true;
+  out.ipad_cable = b.ipad_cable === true;
   out.devices = Array.isArray(b.devices) ? b.devices.filter((d) => typeof d === 'string').slice(0, 20).map((d) => d.slice(0, 40)) : [];
   const dd = typeof b.device_details === 'object' && b.device_details !== null && !Array.isArray(b.device_details)
     ? (b.device_details as Record<string, unknown>) : {};

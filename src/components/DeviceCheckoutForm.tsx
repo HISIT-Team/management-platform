@@ -357,6 +357,10 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
           ipad_id: assetId('iPad') || null,
           signed_by: signer,
           signature: await compactSignature(base.signature),
+          macbook_charger: selected.includes('MacBook Charger'),
+          ipad_charger: selected.includes('iPad Charger'),
+          macbook_cable: selected.includes('MacBook Cable'),
+          ipad_cable: selected.includes('iPad Cable'),
         });
       };
 
@@ -379,6 +383,10 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
           macbook_id: assetId('MacBook'),
           ipad_id: assetId('iPad'),
           accessories_id: assetId('Accessories'),
+          macbook_charger: selected.includes('MacBook Charger'),
+          ipad_charger: selected.includes('iPad Charger'),
+          macbook_cable: selected.includes('MacBook Cable'),
+          ipad_cable: selected.includes('iPad Cable'),
           device_details: base.device_details,
           signed_by: signer,
           signature_data_url: sigJpeg,

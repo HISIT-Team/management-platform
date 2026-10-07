@@ -58,9 +58,9 @@ function describe(e: AuditEntry): string {
     case 'device_record_updated': {
       const b = (d.before || {}) as Record<string, unknown>;
       const a = (d.after || {}) as Record<string, unknown>;
-      const LBL: Record<string, string> = { created_at: 'Data', operation: 'Operazione', student_email: 'Email', school: 'Scuola', macbook_id: 'MacBook', ipad_id: 'iPad', signed_by: 'Firmato da' };
+      const LBL: Record<string, string> = { created_at: 'Data', operation: 'Operazione', student_email: 'Email', school: 'Scuola', macbook_id: 'MacBook', ipad_id: 'iPad', signed_by: 'Firmato da', macbook_charger: 'Caricatore MacBook', macbook_cable: 'Cavo MacBook', ipad_charger: 'Caricatore iPad', ipad_cable: 'Cavo iPad' };
       const val = (k: string, v: unknown) =>
-        v == null || v === '' ? '—' : k === 'created_at' ? fmt(String(v)) : k === 'operation' ? (v === 'Check-out' ? 'Consegna' : 'Restituzione') : String(v);
+        v == null || v === '' ? '—' : v === true ? 'sì' : v === false ? 'no' : k === 'created_at' ? fmt(String(v)) : k === 'operation' ? (v === 'Check-out' ? 'Consegna' : 'Restituzione') : String(v);
       return Object.keys(a)
         .map((k) => `${LBL[k] ?? k}: ${val(k, b[k])} → ${val(k, a[k])}`)
         .join(' · ');

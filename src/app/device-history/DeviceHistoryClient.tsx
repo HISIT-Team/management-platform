@@ -14,6 +14,8 @@ import {
   type StudentDeviceLogRow,
   SCHOOLS,
   SIGNERS,
+  ACCESSORIES,
+  type AccessoryKey,
   deleteStudentDeviceLog,
   listStudentDeviceLog,
   schoolShort,
@@ -86,6 +88,25 @@ const toLocalInput = (iso: string) => {
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const SIGNER_LABEL: Record<string, string> = { Student: 'Studente', Parent: 'Genitore', 'IT Support': 'IT Support' };
 
+/** Charger / cable included? Icon + ✓ yes / ✗ no; nothing when not
+    recorded (records saved before migration 0021). */
+const ACC_ICON = {
+  charger: <path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v5" />,
+  cable: <path d="M7 3v5a3 3 0 0 0 3 3h4a3 3 0 0 1 3 3v7M5 3h4M15 21h4" />,
+};
+function Acc({ v, kind, device }: { v: boolean | null | undefined; kind: 'charger' | 'cable'; device: string }) {
+  if (v === null || v === undefined) return null;
+  const label = `${kind === 'charger' ? 'Caricatore' : 'Cavo'} ${device} ${v ? 'incluso' : 'non incluso'}`;
+  return (
+    <span className={'dh-chg ' + (v ? 'yes' : 'no')} title={label} aria-label={label}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        {ACC_ICON[kind]}
+      </svg>
+      {v ? '✓' : '✗'}
+    </span>
+  );
+}
+
 interface EditForm {
   when: string;
   operation: 'Check-in' | 'Check-out';
@@ -94,6 +115,7 @@ interface EditForm {
   macbook: string;
   ipad: string;
   signedBy: string;
+  acc: Record<AccessoryKey, boolean | null>;
 }
 
 const OP_TAG: Record<string, React.CSSProperties> = {
@@ -198,6 +220,7 @@ export default function DeviceHistoryClient() {
       macbook: r.macbook_id ?? '',
       ipad: r.ipad_id ?? '',
       signedBy: r.signed_by ?? '',
+      acc: Object.fromEntries(ACCESSORIES.map((a) => [a.key, r[a.key] ?? null])) as Record<AccessoryKey, boolean | null>,
     });
   };
 
@@ -221,7 +244,8 @@ export default function DeviceHistoryClient() {
       edit.school !== (toEdit.school ?? '') ||
       edit.macbook.trim() !== (toEdit.macbook_id ?? '') ||
       edit.ipad.trim() !== (toEdit.ipad_id ?? '') ||
-      edit.signedBy !== (toEdit.signed_by ?? ''));
+      edit.signedBy !== (toEdit.signed_by ?? '') ||
+      ACCESSORIES.some((a) => edit.acc[a.key] !== (toEdit[a.key] ?? null)));
 
   const handleEdit = async () => {
     if (!toEdit || !edit) return;
@@ -239,6 +263,7 @@ export default function DeviceHistoryClient() {
         macbook_id: edit.macbook.trim() || null,
         ipad_id: edit.ipad.trim() || null,
         signed_by: edit.signedBy || null,
+        ...edit.acc,
       };
       const updated = await updateStudentDeviceLog(toEdit.id, changes);
       setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)).sort((a, b) => b.created_at.localeCompare(a.created_at)));
@@ -453,6 +478,18 @@ export default function DeviceHistoryClient() {
             </span>
           </div>
 
+          <div className="dh-legend">
+            <span>
+              <Acc v={true} kind="charger" device="" />
+              caricatore
+            </span>
+            <span>
+              <Acc v={true} kind="cable" device="" />
+              cavo
+            </span>
+            <span>✓ incluso · ✗ non incluso</span>
+          </div>
+
           {/* ── History table ── */}
           <div className="ledger">
             {loading ? (
@@ -503,18 +540,30 @@ export default function DeviceHistoryClient() {
                             <button className="dh-link" onClick={() => pick(r.macbook_id)} title="Mostra lo storico di questo MacBook">
                               {r.macbook_id}
                             </button>
-                          ) : (
+                          ) : r.macbook_charger || r.macbook_cable ? null : (
                             <span className="dh-none">—</span>
                           )}
+                          {r.macbook_id || r.macbook_charger || r.macbook_cable ? (
+                            <>
+                              <Acc v={r.macbook_charger} kind="charger" device="MacBook" />
+                              <Acc v={r.macbook_cable} kind="cable" device="MacBook" />
+                            </>
+                          ) : null}
                         </td>
                         <td className="dh-mono">
                           {r.ipad_id ? (
                             <button className="dh-link" onClick={() => pick(r.ipad_id)} title="Mostra lo storico di questo iPad">
                               {r.ipad_id}
                             </button>
-                          ) : (
+                          ) : r.ipad_charger || r.ipad_cable ? null : (
                             <span className="dh-none">—</span>
                           )}
+                          {r.ipad_id || r.ipad_charger || r.ipad_cable ? (
+                            <>
+                              <Acc v={r.ipad_charger} kind="charger" device="iPad" />
+                              <Acc v={r.ipad_cable} kind="cable" device="iPad" />
+                            </>
+                          ) : null}
                         </td>
                         <td>{schoolShort(r.school)}</td>
                         <td className="dh-muted">{r.signed_by ?? '—'}</td>
@@ -609,6 +658,14 @@ export default function DeviceHistoryClient() {
                     <label htmlFor="ed-ipad">iPad ID</label>
                     <input id="ed-ipad" type="text" value={edit.ipad} placeholder="—" onChange={(e) => setEdit({ ...edit, ipad: e.target.value })} autoComplete="off" />
                   </div>
+                </div>
+                <div className="dh-row2 dh-chg-row">
+                  {ACCESSORIES.map((a) => (
+                    <label key={a.key} className="dh-check">
+                      <input type="checkbox" checked={edit.acc[a.key] === true} onChange={(e) => setEdit({ ...edit, acc: { ...edit.acc, [a.key]: e.target.checked } })} />
+                      {a.label} {a.device}
+                    </label>
+                  ))}
                 </div>
                 <div className="dh-row2">
                   <div className={'field' + (editTried && editErrors.school ? ' dh-bad' : '')}>
@@ -813,6 +870,16 @@ export default function DeviceHistoryClient() {
         .dh-page td.col-actions .icon-btn + .icon-btn { margin-left: 2px; }
         .dh-page .dh-bad input, .dh-page .dh-bad select { border-color: #C0392B !important; box-shadow: 0 0 0 3px rgba(192, 57, 43, .1) !important; }
         .dh-page .dh-err { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: #A32D2D; }
+        .dh-page .dh-chg { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; padding: 2px 6px; border-radius: 999px; font-family: inherit; font-size: 11.5px; font-weight: 800; vertical-align: 1px; }
+        .dh-page .dh-chg svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+        .dh-page .dh-legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--b-muted); margin: -.3rem 0 .7rem; }
+        .dh-page .dh-legend .dh-chg { margin-left: 0; margin-right: 4px; }
+        .dh-page .dh-chg.yes { background: #E6F2EC; color: #1F5A48; }
+        .dh-page .dh-chg.no { background: #F9EFF0; color: #8B1A2B; }
+        .dh-page .dh-chg-row { margin: -.2rem 0 .9rem; row-gap: 10px; }
+        .dh-page .dh-chg + .dh-chg { margin-left: 4px; }
+        .dh-page .dh-check { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 600; color: var(--b-ink); cursor: pointer; padding: 10px 12px; border: 1.5px solid #E4DCDD; border-radius: 12px; background: var(--b-surface); }
+        .dh-page .dh-check input { width: 17px; height: 17px; accent-color: var(--brand); margin: 0; }
         .dh-page .dh-note { font-size: 12.5px; color: var(--b-muted); margin: .2rem 0 0; }
         .dh-page .dh-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
         .dh-page .dh-opts { margin-bottom: 0; }

@@ -14,6 +14,10 @@
   "macbook_id": "C02XK1ABJG5H",
   "ipad_id": "DMPXR2KQ1F",
   "accessories_id": "",
+  "macbook_charger": true,
+  "ipad_charger": false,
+  "macbook_cable": true,
+  "ipad_cable": false,
   "device_details": {
     "MacBook": { "asset_id": "C02XK1ABJG5H", "images": [], "has_damage": false, "damage_photos": [] },
     "iPad": { "asset_id": "DMPXR2KQ1F", "images": [], "has_damage": false, "damage_photos": [] }

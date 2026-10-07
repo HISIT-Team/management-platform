@@ -26,6 +26,7 @@ funzione accetta solo utenti loggati con ruolo `it` o `admin`.
 - `form_type`: `student_checkout`, `student_checkin`, `employee_checkout`, `employee_checkin`
 - `email`, `first_name`, `last_name`, `school_or_company`, `parent_email_1/2`
 - `macbook_id`, `ipad_id`, `accessories_id`, `devices`
+- `macbook_charger`, `macbook_cable`, `ipad_charger`, `ipad_cable` (true/false: included in the delivery / return)
 - Firma come immagine: `base64ToBinary(triggerBody()?['signature_base64'])`
   (JPEG) — es. allegato `firma.jpg` in un'email.
 - `photos[]` (solo studenti): foto dispositivo/danni, stesso formato.

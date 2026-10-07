@@ -1,19 +1,25 @@
 -- ═══════════════════════════════════════════════════════════════════
--- Storico assegnazioni: modifica di un record (matita accanto al
--- cestino). Run once in the Supabase SQL Editor, AFTER 0017.
--- Rieseguibile. NOTE: 0021 replaces device_log_update (adds the chargers):
--- if you re-run this file, re-run 0021 afterwards.
+-- Storico assegnazioni: chargers and cables. Run once in the Supabase SQL Editor,
+-- AFTER 0020. Rieseguibile.
 --
--- There is still NO update policy on student_device_log: a record is
--- changed only through device_log_update(), which
---   - needs the "Storico assegnazioni" permission (it.history), the
---     same one that allows deleting a record;
---   - changes only date/time, operation, student email, school,
---     MacBook ID, iPad ID and "signed by" (never the signature or who
---     created the record);
---   - writes the change to the activity log, with the values before
---     and after.
+-- Four new columns on student_device_log: were the MacBook charger,
+-- the MacBook cable, the iPad charger and the iPad cable part of the
+-- delivery or of the return?
+--   true  = yes, false = no, null = not recorded (records saved before
+--   this migration: the form didn't keep it).
+-- The form fills them from the "MacBook Charger", "MacBook Cable",
+-- "iPad Charger" and "iPad Cable" tiles; they can be corrected with the
+-- pencil (device_log_update now takes them too, so the old 8-argument
+-- version is removed).
 -- ═══════════════════════════════════════════════════════════════════
+
+alter table public.student_device_log add column if not exists macbook_charger boolean;
+alter table public.student_device_log add column if not exists ipad_charger boolean;
+alter table public.student_device_log add column if not exists macbook_cable boolean;
+alter table public.student_device_log add column if not exists ipad_cable boolean;
+
+drop function if exists public.device_log_update(uuid, timestamptz, text, text, text, text, text, text);
+drop function if exists public.device_log_update(uuid, timestamptz, text, text, text, text, text, text, boolean, boolean);
 
 create or replace function public.device_log_update(
   p_id         uuid,
@@ -23,7 +29,11 @@ create or replace function public.device_log_update(
   p_school     text,
   p_macbook_id text,
   p_ipad_id    text,
-  p_signed_by  text
+  p_signed_by  text,
+  p_macbook_charger boolean,
+  p_ipad_charger    boolean,
+  p_macbook_cable   boolean,
+  p_ipad_cable      boolean
 )
 returns public.student_device_log
 language plpgsql
@@ -69,12 +79,16 @@ begin
          school        = p_school,
          macbook_id    = nullif(btrim(coalesce(p_macbook_id, '')), ''),
          ipad_id       = nullif(btrim(coalesce(p_ipad_id, '')), ''),
-         signed_by     = p_signed_by
+         signed_by     = p_signed_by,
+         macbook_charger = p_macbook_charger,
+         ipad_charger    = p_ipad_charger,
+         macbook_cable   = p_macbook_cable,
+         ipad_cable      = p_ipad_cable
    where id = p_id
   returning * into v_new;
 
   -- Only the fields that actually changed go to the activity log.
-  foreach k in array array['created_at', 'operation', 'student_email', 'school', 'macbook_id', 'ipad_id', 'signed_by'] loop
+  foreach k in array array['created_at', 'operation', 'student_email', 'school', 'macbook_id', 'ipad_id', 'signed_by', 'macbook_charger', 'ipad_charger', 'macbook_cable', 'ipad_cable'] loop
     if (to_jsonb(v_old) -> k) is distinct from (to_jsonb(v_new) -> k) then
       v_before := v_before || jsonb_build_object(k, to_jsonb(v_old) -> k);
       v_after  := v_after  || jsonb_build_object(k, to_jsonb(v_new) -> k);
@@ -90,5 +104,5 @@ begin
 end;
 $$;
 
-revoke execute on function public.device_log_update(uuid, timestamptz, text, text, text, text, text, text) from public, anon;
-grant execute on function public.device_log_update(uuid, timestamptz, text, text, text, text, text, text) to authenticated;
+revoke execute on function public.device_log_update(uuid, timestamptz, text, text, text, text, text, text, boolean, boolean, boolean, boolean) from public, anon;
+grant execute on function public.device_log_update(uuid, timestamptz, text, text, text, text, text, text, boolean, boolean, boolean, boolean) to authenticated;

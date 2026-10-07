@@ -23,6 +23,11 @@ export interface PowerAutomatePayload {
   macbook_id: string;
   ipad_id: string;
   accessories_id: string;
+  /** Charger / cable included in the delivery / return. */
+  macbook_charger: boolean;
+  ipad_charger: boolean;
+  macbook_cable: boolean;
+  ipad_cable: boolean;
   device_details: Record<string, unknown>;
   signed_by: string;
   /** Signature as JPEG/WebP data URL, plus the bare base64 part (use base64ToBinary() in Power Automate). */

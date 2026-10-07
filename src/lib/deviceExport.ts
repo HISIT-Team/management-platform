@@ -54,8 +54,19 @@ export async function exportDeviceHistory(rows: StudentDeviceLogRow[], o: Export
     { column: 'Operazione', type: String, width: 14, value: (r) => OP_LABEL[r.operation] ?? r.operation },
     { column: 'Email studente', type: String, width: 36, value: (r) => r.student_email },
   ];
-  if (o.device !== 'ipad') schema.push({ column: 'MacBook ID', type: String, width: 18, value: (r) => r.macbook_id ?? '' });
-  if (o.device !== 'macbook') schema.push({ column: 'iPad ID', type: String, width: 18, value: (r) => r.ipad_id ?? '' });
+  const yesNo = (v: boolean | null) => (v === true ? 'Sì' : v === false ? 'No' : '');
+  if (o.device !== 'ipad')
+    schema.push(
+      { column: 'MacBook ID', type: String, width: 18, value: (r) => r.macbook_id ?? '' },
+      { column: 'Caricatore MacBook', type: String, width: 12, value: (r) => yesNo(r.macbook_charger) },
+      { column: 'Cavo MacBook', type: String, width: 10, value: (r) => yesNo(r.macbook_cable) },
+    );
+  if (o.device !== 'macbook')
+    schema.push(
+      { column: 'iPad ID', type: String, width: 18, value: (r) => r.ipad_id ?? '' },
+      { column: 'Caricatore iPad', type: String, width: 12, value: (r) => yesNo(r.ipad_charger) },
+      { column: 'Cavo iPad', type: String, width: 10, value: (r) => yesNo(r.ipad_cable) },
+    );
   schema.push(
     { column: 'Scuola', type: String, width: 12, value: (r) => schoolShort(r.school) },
     { column: 'Firmato da', type: String, width: 13, value: (r) => r.signed_by ?? '' },
