@@ -10,6 +10,7 @@ import { SIGNUP_ENABLED } from './features';
 import { mfaStepNeeded } from './mfa';
 import { allows } from './nav';
 import { loadMyPermissions } from './permissions';
+import { requestCompanyPick } from './companies';
 
 // Where the confirmation / reset links send the user back to.
 // IMPORTANT: add these exact URLs in Supabase →
@@ -73,6 +74,7 @@ export async function signInUser({ email, password, captchaToken }: SignInArgs) 
   });
   if (error) throw error;
   touchActivity(); // fresh login → inactivity timer starts now
+  requestCompanyPick(); // first page after login: choose the company (if more than one)
   void refreshIdleLimit(); // role-based inactivity limit
   return data;
 }

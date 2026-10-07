@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- NOTE: since 0018 budget lines live in budget_lines and expense access is per
+--       school (vi.budget / ro.budget / it.budget): re-run 0018 after this file.
 -- NOTE: since 0017 access is decided by the role permissions (has_permission()):
 --       if you re-run this file, re-run 0017 afterwards.
 -- NOTE: since 0016 these tables are admin/superadmin only (is_platform_admin()).

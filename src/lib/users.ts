@@ -29,6 +29,10 @@ export const ROLES: { value: string; label: string; color: string; soft: string 
   { value: 'boarding', label: 'Boarding', color: '#2F6E5B', soft: '#E6F2EC' },
   { value: 'office', label: 'Student Office', color: '#9A5B00', soft: '#FFF3E4' },
   { value: 'parent', label: 'Parent', color: '#46636B', soft: '#E7EFF1' },
+  { value: 'office.hvi', label: 'Office · Vicenza', color: '#2D4770', soft: '#E8EEF7' },
+  { value: 'teachers.hvi', label: 'Teachers · Vicenza', color: '#3C5A8A', soft: '#EEF2F9' },
+  { value: 'office.hro', label: 'Office · Rosà', color: '#1F5A48', soft: '#E6F2EC' },
+  { value: 'teachers.hro', label: 'Teachers · Rosà', color: '#2F6E5B', soft: '#EDF5F1' },
   { value: 'guest', label: 'Guest', color: '#6E6468', soft: '#F1EDEC' },
 ];
 export const roleMeta = (r: string) =>
@@ -81,6 +85,9 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   mfa_remember_changed: 'Durata "ricorda dispositivo" cambiata',
   idle_timeout_changed: 'Timeout inattività cambiato',
   permission_changed: 'Permesso di un ruolo cambiato',
+  budget_line_created: 'Commessa creata',
+  budget_adjusted: 'Stanziamento commessa modificato',
+  budget_line_archived: 'Commessa rimossa',
 };
 
 export async function listAudit(limit = 1000): Promise<AuditEntry[]> {

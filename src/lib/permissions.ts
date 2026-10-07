@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════
    Permissions per role (Gestione Backend → Permessi ruoli, migration
-   0017). Owner and Super Admin always have everything; Guest nothing;
+   0017, 0018). Owner and Super Admin always have everything; Guest nothing;
    the roles below can be configured. Enforced in the database too
    (has_permission() in RLS and in the Edge Functions).
    ═══════════════════════════════════════════════════════════════════ */
@@ -30,10 +30,14 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'boarding', label: 'Sezione Boarding', desc: 'Pagina Boarding e voce nel menu', group: 'Boarding' },
   { key: 'boarding.rooms', label: 'Assegnazione camere', desc: 'Form e registri camere', group: 'Boarding', sub: true },
   { key: 'office', label: 'Sezione Student Office', desc: 'Pagina Student Office', group: 'Student Office' },
+  { key: 'vi.budget', label: 'Budget e commesse', desc: 'Spese, nuove commesse e stanziamenti di H-IS Vicenza', group: 'H-IS Vicenza' },
+  { key: 'vi.purchases', label: 'Purchases — richieste', desc: 'Inviare richieste di acquisto e vedere le proprie', group: 'H-IS Vicenza' },
+  { key: 'vi.purchases_admin', label: 'Purchases — tutte le richieste', desc: 'Vedere ed esportare le richieste di tutti', group: 'H-IS Vicenza', sub: true },
+  { key: 'ro.budget', label: 'Budget e commesse', desc: 'Spese, nuove commesse e stanziamenti di H-IS Rosà', group: 'H-IS Rosà' },
 ];
 
 /** Roles whose permissions can be edited (keep in sync with configurable_roles() in 0017). */
-export const CONFIGURABLE_ROLES = ['admin', 'it', 'hr', 'boarding', 'office', 'parent'];
+export const CONFIGURABLE_ROLES = ['admin', 'it', 'hr', 'boarding', 'office', 'parent', 'office.hvi', 'teachers.hvi', 'office.hro', 'teachers.hro'];
 
 /** Permissions of the signed-in user's role; null when unavailable (0017 not run). */
 export async function loadMyPermissions(): Promise<string[] | null> {

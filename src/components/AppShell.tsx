@@ -10,6 +10,7 @@ import Icon from './Icon';
 import { type NavItem, allows, isActive, isSectionActive, navFor } from '@/lib/nav';
 import { signOutUser } from '@/lib/auth';
 import { type UiPrefs, UI_EVENT, readUiPrefs, zoomFor } from '@/lib/uiPrefs';
+import { type Company, type CompanyId, COMPANY_EVENT, companiesFor, companyOfPath, readCompany, setCompany } from '@/lib/companies';
 
 export interface ShellUser {
   name: string;
@@ -21,7 +22,12 @@ export interface ShellUser {
 }
 
 /* Lets Header / Topbar / Footer switch to their in-shell look. */
-export const ShellContext = createContext<{ inShell: boolean; user: ShellUser | null }>({ inShell: false, user: null });
+export const ShellContext = createContext<{ inShell: boolean; user: ShellUser | null; company: Company | null; companies: Company[] }>({
+  inShell: false,
+  user: null,
+  company: null,
+  companies: [],
+});
 export const useShell = () => useContext(ShellContext);
 
 const ROLE_LABEL: Record<string, string> = {
@@ -33,6 +39,10 @@ const ROLE_LABEL: Record<string, string> = {
   boarding: 'Boarding',
   office: 'Student Office',
   parent: 'Parent',
+  'office.hvi': 'Office · Vicenza',
+  'teachers.hvi': 'Teachers · Vicenza',
+  'office.hro': 'Office · Rosà',
+  'teachers.hro': 'Teachers · Rosà',
   guest: 'Guest',
 };
 
@@ -97,9 +107,26 @@ export default function AppShell({ user, children }: { user: ShellUser; children
   }, []);
   const zoom = zoomFor(ui.prefs, ui.width);
   const access = { roles: user.roles, perms: user.perms };
-  const groups = navFor(access);
-  const canStudentForm = allows(access, 'it.checkin_student', ['it', 'admin']);
-  const canHistory = allows(access, 'it.history', ['it', 'admin']);
+
+  // Company: the one of the page being viewed, else the one chosen (stored).
+  const companies = companiesFor(access);
+  const [storedCompany, setStoredCompany] = useState<CompanyId | null>(() => (typeof window === 'undefined' ? null : readCompany()));
+  useEffect(() => {
+    const on = (e: Event) => setStoredCompany((e as CustomEvent<CompanyId>).detail);
+    window.addEventListener(COMPANY_EVENT, on);
+    return () => window.removeEventListener(COMPANY_EVENT, on);
+  }, []);
+  const pathCompany = companyOfPath(pathname);
+  const company = companies.find((c) => c.id === pathCompany) ?? companies.find((c) => c.id === storedCompany) ?? companies[0] ?? null;
+  // Opening a page of another company switches to it.
+  useEffect(() => {
+    if (company && company.id !== readCompany()) setCompany(company.id);
+  }, [company]);
+
+  const groups = navFor(access, company?.id);
+  const canStudentForm = allows(access, 'it.checkin_student', ['it', 'admin']) && (!company || company.id === 'venezia');
+  // Device features belong to H-IS Venezia: hidden while viewing another company.
+  const canHistory = allows(access, 'it.history', ['it', 'admin']) && (!company || company.id === 'venezia');
   const isIt = canStudentForm || canHistory;
   const role = user.roles[0] ?? '';
 
@@ -140,6 +167,34 @@ export default function AppShell({ user, children }: { user: ShellUser; children
           </b>
         </span>
       </Link>
+      {companies.length > 1 ? (
+        <div className="sh-companies" role="radiogroup" aria-label="Società">
+          {companies.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              role="radio"
+              aria-checked={company?.id === c.id}
+              className={'sh-company' + (company?.id === c.id ? ' on' : '')}
+              onClick={() => {
+                setCompany(c.id);
+                close();
+                router.push('/');
+              }}
+            >
+              <i style={{ background: c.color }} />
+              {c.name}
+            </button>
+          ))}
+        </div>
+      ) : company ? (
+        <div className="sh-companies single">
+          <span className="sh-company on">
+            <i style={{ background: company.color }} />
+            {company.name}
+          </span>
+        </div>
+      ) : null}
       <nav className="sh-nav" aria-label="Main">
         {groups.map((g, gi) => (
           <div key={gi} className="sh-group">
@@ -186,7 +241,7 @@ export default function AppShell({ user, children }: { user: ShellUser; children
   }
 
   return (
-    <ShellContext.Provider value={{ inShell: true, user }}>
+    <ShellContext.Provider value={{ inShell: true, user, company, companies }}>
       <div
         className={'sh-app' + (ui.prefs.width === 'centered' ? ' sh-app--centered' : '')}
         style={{ ['--z' as string]: String(zoom), zoom: zoom === 1 ? undefined : zoom } as React.CSSProperties}
@@ -226,6 +281,12 @@ export default function AppShell({ user, children }: { user: ShellUser; children
             ) : (
               <div className="sh-spacer" />
             )}
+            {company ? (
+              <span className="sh-co-chip" title={company.full}>
+                <i style={{ background: company.color }} />
+                {company.name}
+              </span>
+            ) : null}
             <Link href="/profile" className="sh-top-user" title="My profile">
               <Avatar user={user} size={34} />
               <span className="sh-top-name">

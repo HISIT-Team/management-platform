@@ -210,10 +210,109 @@ export async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Sum of expenses per budget code, for the given school's lines. */
-export function totalsByCode(school: School, expenses: Expense[]): Record<string, number> {
+/** Sum of expenses per budget code, for the given lines. */
+export function totalsByCode(lines: BudgetLine[], expenses: Expense[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const b of school.lines) out[b.code] = 0;
+  for (const b of lines) out[b.code] = 0;
   for (const e of expenses) out[e.budget_code] = (out[e.budget_code] || 0) + e.amount;
   return out;
+}
+
+
+// ─── Budget lines in the database (migration 0018) ───────────
+// Lines and allocations live in `budget_lines`; SCHOOLS above is only
+// the fallback used before the migration is run.
+
+/** Permission that opens the budget of each school. */
+export const BUDGET_PERM: Record<string, string> = { venezia: 'it.budget', vicenza: 'vi.budget', rosa: 'ro.budget' };
+
+/** Colours offered for a new budget line. */
+export const LINE_ACCENTS: { accent: string; soft: string }[] = [
+  { accent: '#8B1A2B', soft: '#F9EFF0' },
+  { accent: '#C9A227', soft: '#FBF4DF' },
+  { accent: '#2F6E5B', soft: '#E7F2EE' },
+  { accent: '#3C5A8A', soft: '#E8EEF7' },
+  { accent: '#6A3E8A', soft: '#F1EAF7' },
+  { accent: '#9A5B00', soft: '#FFF3E4' },
+  { accent: '#46636B', soft: '#E7EFF1' },
+  { accent: '#B23A6B', soft: '#FBEAF1' },
+];
+
+interface LineRow {
+  code: string;
+  name: string;
+  caption: string | null;
+  accent: string;
+  accent_soft: string;
+  allocated: number | string;
+}
+
+/** Active lines of a school, or null when the table isn't there yet. */
+export async function listBudgetLines(school: string): Promise<BudgetLine[] | null> {
+  const { data, error } = await getSupabase()
+    .from('budget_lines')
+    .select('code,name,caption,accent,accent_soft,allocated')
+    .eq('school', school)
+    .eq('active', true)
+    .order('sort_order')
+    .order('created_at');
+  if (error) return null;
+  return ((data ?? []) as LineRow[]).map((r) => ({
+    code: r.code,
+    name: r.name,
+    caption: r.caption ?? '',
+    accent: r.accent,
+    accentSoft: r.accent_soft,
+    allocated: Number(r.allocated) || 0,
+  }));
+}
+
+export async function createBudgetLine(
+  school: string,
+  input: { name: string; caption: string; allocated: number; accent: string; accentSoft: string },
+): Promise<string> {
+  const { data, error } = await getSupabase().rpc('budget_create_line', {
+    p_school: school,
+    p_name: input.name,
+    p_caption: input.caption,
+    p_allocated: input.allocated,
+    p_accent: input.accent,
+    p_accent_soft: input.accentSoft,
+  });
+  if (error) throw new Error(error.message);
+  return String(data);
+}
+
+/** amount > 0 raises the allocation, < 0 lowers it. Returns the new allocation. */
+export async function adjustBudgetLine(school: string, code: string, amount: number, reason: string): Promise<number> {
+  const { data, error } = await getSupabase().rpc('budget_adjust_line', { p_school: school, p_code: code, p_amount: amount, p_reason: reason });
+  if (error) throw new Error(error.message);
+  return Number(data) || 0;
+}
+
+export async function archiveBudgetLine(school: string, code: string): Promise<void> {
+  const { error } = await getSupabase().rpc('budget_archive_line', { p_school: school, p_code: code });
+  if (error) throw new Error(error.message);
+}
+
+export interface BudgetAdjustment {
+  id: string;
+  budget_code: string;
+  amount: number;
+  allocated_after: number;
+  reason: string | null;
+  kind: 'create' | 'adjust' | 'archive';
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export async function listAdjustments(school: string): Promise<BudgetAdjustment[]> {
+  const { data, error } = await getSupabase()
+    .from('budget_adjustments')
+    .select('id,budget_code,amount,allocated_after,reason,kind,created_by_name,created_at')
+    .eq('school', school)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) return [];
+  return ((data ?? []) as BudgetAdjustment[]).map((r) => ({ ...r, amount: Number(r.amount) || 0, allocated_after: Number(r.allocated_after) || 0 }));
 }

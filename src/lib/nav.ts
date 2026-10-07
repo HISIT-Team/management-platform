@@ -28,6 +28,7 @@ export type NavIcon =
   | 'clock'
   | 'shield'
   | 'sliders'
+  | 'cart'
   | 'user'
   | 'external';
 
@@ -38,6 +39,8 @@ export interface NavItem {
   roles: string[];
   /** Permission key (src/lib/permissions.ts); none = decided by `roles`. */
   perm?: string;
+  /** Company the entry belongs to (none = every company: dashboard, admin). */
+  company?: 'venezia' | 'vicenza' | 'rosa';
   external?: boolean;
   /** Extra paths that count as "inside" this entry (for the active state). */
   match?: string[];
@@ -49,7 +52,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-const ALL = ['owner', 'superadmin', 'admin', 'it', 'hr', 'boarding', 'office', 'parent'];
+const ALL = ['owner', 'superadmin', 'admin', 'it', 'hr', 'boarding', 'office', 'parent', 'office.hvi', 'teachers.hvi', 'office.hro', 'teachers.hro'];
 
 export const NAV: NavGroup[] = [
   {
@@ -64,13 +67,14 @@ export const NAV: NavGroup[] = [
         icon: 'it',
         roles: ['it', 'admin'],
         perm: 'it',
+        company: 'venezia',
         match: ['/qr'],
         children: [
           { label: 'Consegne studenti', href: '/student-checkinout-hub', icon: 'box', roles: ['it', 'admin'], perm: 'it.checkin_student', match: ['/modulo-student'] },
           { label: 'Consegne dipendenti', href: '/employee-checkinout-hub', icon: 'briefcase', roles: ['it', 'admin'], perm: 'it.checkin_employee', match: ['/modulo-employee'] },
           { label: 'Storico assegnazioni', href: '/device-history', icon: 'history', roles: ['it', 'admin'], perm: 'it.history' },
           { label: 'Registri risposte', href: '/it-registries-hub', icon: 'registry', roles: ['it', 'admin'], perm: 'it.registries' },
-          { label: 'Budget IT', href: '/budget-management', icon: 'wallet', roles: ['admin'], perm: 'it.budget' },
+          { label: 'Budget IT', href: '/budget-management/venezia', icon: 'wallet', roles: ['admin'], perm: 'it.budget' },
           { label: 'Task Manager', href: '/task-manager', icon: 'tasks', roles: ['admin'], perm: 'it.tasks' },
         ],
       },
@@ -80,6 +84,7 @@ export const NAV: NavGroup[] = [
         icon: 'people',
         roles: ['hr', 'admin'],
         perm: 'hr',
+        company: 'venezia',
         match: ['/employee-management-hub'],
         children: [
           { label: 'Onboarding', href: '/onboarding', icon: 'userPlus', roles: ['hr', 'admin'], perm: 'hr.onboarding' },
@@ -93,9 +98,15 @@ export const NAV: NavGroup[] = [
         icon: 'house',
         roles: ['boarding', 'admin'],
         perm: 'boarding',
+        company: 'venezia',
         match: ['/room-assignment-hub', '/room-assignment'],
       },
-      { label: 'Student Office', href: '/student-office', icon: 'file', roles: ['office', 'admin'], perm: 'office' },
+      { label: 'Student Office', href: '/student-office', icon: 'file', roles: ['office', 'admin'], perm: 'office', company: 'venezia' },
+      // H-IS Vicenza
+      { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet', roles: ['office.hvi', 'admin'], perm: 'vi.budget', company: 'vicenza' },
+      { label: 'Purchases', href: '/purchases', icon: 'cart', roles: ['office.hvi', 'teachers.hvi', 'admin'], perm: 'vi.purchases', company: 'vicenza' },
+      // H-IS Rosà
+      { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet', roles: ['office.hro', 'admin'], perm: 'ro.budget', company: 'rosa' },
     ],
   },
   {
@@ -135,10 +146,11 @@ export function allows(a: Access, perm: string | undefined, roles: string[]): bo
 }
 
 /** The navigation trimmed to what this user can open (empty groups removed). */
-export function navFor(a: Access): NavGroup[] {
+export function navFor(a: Access, company?: string | null): NavGroup[] {
   return NAV.map((g) => ({
     ...g,
     items: g.items
+      .filter((i) => !company || !i.company || i.company === company)
       .map((i) => ({ ...i, children: i.children?.filter((c) => allows(a, c.perm, c.roles)) }))
       .filter((i) => allows(a, i.perm, i.roles) || (i.children?.length ?? 0) > 0),
   })).filter((g) => g.items.length);

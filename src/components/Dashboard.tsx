@@ -1,7 +1,9 @@
 'use client';
-/* Home dashboard (inside the app shell). What it shows depends on the
-   role: IT staff get device KPIs and the latest movements, admins also
-   budget and tasks, every role its sections and quick actions. */
+/* Home dashboard (inside the app shell), for the company being viewed.
+   H-IS Venezia: device KPIs and movements (IT), budget, tasks.
+   H-IS Vicenza: budget and purchase requests. H-IS Rosà: budget.
+   Everything follows the role's permissions (Permessi ruoli). Right
+   after login, a user with more than one company picks it first. */
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Icon, { type IconName } from './Icon';
@@ -14,11 +16,14 @@ import {
   type DeviceStats,
   type RecentMove,
   type TaskSummary,
-  loadBudgetSummary,
   loadDeviceStats,
   loadRecentMoves,
+  loadSchoolBudget,
   loadTaskSummary,
 } from '@/lib/dashboard';
+import { BUDGET_PERM } from '@/lib/budgets';
+import { type Company, companyPickPending, dismissCompanyPick, setCompany } from '@/lib/companies';
+import { type PurchaseRequest, listPurchases } from '@/lib/purchases';
 
 const eur0 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' } as Intl.NumberFormatOptions);
 
@@ -33,7 +38,48 @@ const SECTION_META: Record<string, { desc: string; color: string; soft: string }
   '/onboarding': { desc: 'Richiesta di setup per un nuovo dipendente', color: '#6A3E8A', soft: '#F1EAF7' },
   '/employee-management': { desc: 'Processo di uscita di un dipendente', color: '#6A3E8A', soft: '#F1EAF7' },
   '/hr-registry-hub': { desc: 'Registri di onboarding e offboarding', color: '#6A3E8A', soft: '#F1EAF7' },
+  '/budget-management/vicenza': { desc: 'Commesse, spese e stanziamenti', color: '#3C5A8A', soft: '#E8EEF7' },
+  '/budget-management/rosa': { desc: 'Commesse, spese e stanziamenti', color: '#2F6E5B', soft: '#E6F2EC' },
+  '/purchases': { desc: 'Purchase requests — single or multiple items', color: '#9A5B00', soft: '#FFF3E4' },
+  '/role-permissions': { desc: 'Cosa può vedere ogni ruolo', color: '#5B1220', soft: '#F3E3E6' },
 };
+
+const eur = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', useGrouping: 'always' } as Intl.NumberFormatOptions);
+
+/** The first page after login when the user can open several companies. */
+function CompanyPicker({ companies, onPick }: { companies: Company[]; onPick: () => void }) {
+  return (
+    <div className="co-pick">
+      <h1>
+        Scegli la <span>società</span>
+      </h1>
+      <p>Puoi cambiarla in qualsiasi momento dal menu laterale.</p>
+      <div className="co-grid">
+        {companies.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className="co-card"
+            style={{ ['--co' as string]: c.color, ['--co-soft' as string]: c.soft } as React.CSSProperties}
+            onClick={() => {
+              setCompany(c.id);
+              onPick();
+            }}
+          >
+            <span className="co-mono">{c.name.replace('H-IS ', '').slice(0, 2).toUpperCase()}</span>
+            <span>
+              <b>{c.name}</b>
+              <small>
+                {c.full} · {c.location}
+              </small>
+            </span>
+            <span className="co-go">Entra →</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function greeting(d = new Date()): string {
   const h = d.getHours();
@@ -69,59 +115,274 @@ function Delta({ now, prev }: { now: number; prev: number }) {
 }
 
 export default function Dashboard() {
-  const { user } = useShell();
+  const { user, company, companies } = useShell();
+  const [picking, setPicking] = useState(() => companies.length > 1 && companyPickPending());
+  useEffect(() => {
+    if (companies.length <= 1) dismissCompanyPick();
+  }, [companies.length]);
+
   const access = { roles: user?.roles ?? [], perms: user?.perms ?? null };
-  // What the dashboard shows follows the role's permissions (Permessi ruoli).
-  const isIt = allows(access, 'it.history', ['it', 'admin']); // device KPIs + movements
-  const canStudentForm = allows(access, 'it.checkin_student', ['it', 'admin']);
-  const canBudget = allows(access, 'it.budget', ['admin']);
-  const canTasks = allows(access, 'it.tasks', ['admin']);
-  const isAdmin = canBudget || canTasks; // right-hand column
-  const canOnboarding = allows(access, 'hr.onboarding', ['hr', 'admin']);
-  const canOffboarding = allows(access, 'hr.offboarding', ['hr', 'admin']);
+  const co = company?.id ?? 'venezia';
+  const onVe = co === 'venezia';
+  // What the dashboard shows follows the company and the role's permissions.
+  const isIt = onVe && allows(access, 'it.history', ['it', 'admin']); // device KPIs + movements
+  const canStudentForm = onVe && allows(access, 'it.checkin_student', ['it', 'admin']);
+  const canBudget = allows(access, BUDGET_PERM[co] ?? 'it.budget', co === 'vicenza' ? ['office.hvi', 'admin'] : co === 'rosa' ? ['office.hro', 'admin'] : ['admin']);
+  const canTasks = onVe && allows(access, 'it.tasks', ['admin']);
+  const canPurchases = co === 'vicenza' && allows(access, 'vi.purchases', ['office.hvi', 'teachers.hvi', 'admin']);
+  const canAllPurchases = co === 'vicenza' && allows(access, 'vi.purchases_admin', ['office.hvi', 'admin']);
+  const canOnboarding = onVe && allows(access, 'hr.onboarding', ['hr', 'admin']);
+  const canOffboarding = onVe && allows(access, 'hr.offboarding', ['hr', 'admin']);
   const isHr = canOnboarding || canOffboarding;
-  const isBoarding = allows(access, 'boarding.rooms', ['boarding', 'admin']);
+  const isBoarding = onVe && allows(access, 'boarding.rooms', ['boarding', 'admin']);
 
   const [stats, setStats] = useState<DeviceStats | null>(null);
   const [moves, setMoves] = useState<RecentMove[] | null>(null);
   const [budget, setBudget] = useState<BudgetSummary[] | null>(null);
   const [tasks, setTasks] = useState<TaskSummary | null>(null);
-  const [loading, setLoading] = useState(isIt);
+  const [purchases, setPurchases] = useState<PurchaseRequest[] | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isIt) return;
+    if (picking) return;
     let active = true;
     (async () => {
       const { data } = await getSupabase().auth.getUser();
-      const jobs: Promise<unknown>[] = [
-        loadDeviceStats().then((v) => active && setStats(v)),
-        loadRecentMoves().then((v) => active && setMoves(v)),
-      ];
-      if (canBudget) jobs.push(loadBudgetSummary().then((v) => active && setBudget(v)));
+      const jobs: Promise<unknown>[] = [];
+      if (isIt) {
+        jobs.push(loadDeviceStats().then((v) => active && setStats(v)));
+        jobs.push(loadRecentMoves().then((v) => active && setMoves(v)));
+      }
+      if (canBudget) jobs.push(loadSchoolBudget(co).then((v) => active && setBudget(v)));
       if (canTasks && data.user) jobs.push(loadTaskSummary(data.user.id).then((v) => active && setTasks(v)));
+      if (canPurchases) jobs.push(listPurchases(200).then((v) => active && setPurchases(v), () => active && setPurchases(null)));
       await Promise.allSettled(jobs);
       if (active) setLoading(false);
     })();
     return () => {
       active = false;
     };
-  }, [isIt, canBudget, canTasks]);
+  }, [picking, co, isIt, canBudget, canTasks, canPurchases]);
+
+  if (picking) return <CompanyPicker companies={companies} onPick={() => setPicking(false)} />;
 
   const first = (user?.name ?? '').split(' ')[0] || '';
-  const sections = navFor(access)
+  const sections = navFor(access, co)
     .flatMap((g) => g.items)
     .filter((i) => i.href !== '/');
-
-  const quick = sections.flatMap((s) => s.children ?? []);
-
+  const quick = onVe ? sections.flatMap((s) => s.children ?? []) : [];
   const maxDay = Math.max(1, ...(stats?.outPerDay ?? [0]));
+
+  const budAlloc = (budget ?? []).reduce((t, b) => t + b.allocated, 0);
+  const budSpent = (budget ?? []).reduce((t, b) => t + b.spent, 0);
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const monthReqs = (purchases ?? []).filter((r) => new Date(r.created_at).getTime() >= monthStart);
+  const budgetHref = `/budget-management/${co}`;
+
+  const budgetCard = budget ? (
+    <section className="db-card">
+      <div className="db-sec-head">
+        <h2>Budget {company?.name ?? ''}</h2>
+        <Link href={budgetHref}>Apri</Link>
+      </div>
+      <div className="db-budget">
+        {budget.length === 0 ? <div className="db-empty">Nessuna commessa.</div> : null}
+        {budget.map((b) => {
+          const pct = b.allocated ? Math.round((b.spent / b.allocated) * 100) : 0;
+          return (
+            <Link key={b.code} href={budgetHref} className="db-budget-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div>
+                <b>{b.name.replace(' 26/27', '')}</b>
+                <span>
+                  {pct}% di {eur0.format(b.allocated)}
+                </span>
+              </div>
+              <div className="db-track">
+                <i className={pct > 100 ? 'over' : ''} style={{ width: `${Math.min(100, pct)}%`, background: pct > 100 ? undefined : b.accent }} />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  ) : null;
+
+  const tasksCard = tasks ? (
+    <section className="db-card">
+      <div className="db-sec-head">
+        <h2>{tasks.mine ? 'Le mie task' : 'Prossime scadenze'}</h2>
+        <Link href="/task-manager">Task Manager</Link>
+      </div>
+      <div className="db-tasks">
+        {tasks.list.length === 0 ? (
+          <div className="db-empty">Nessuna task aperta.</div>
+        ) : (
+          tasks.list.map((t) => {
+            const due = dueLabel(t.due_date);
+            return (
+              <Link key={t.id} href={`/task-manager?task=${t.id}`} className="db-task">
+                <i style={{ background: t.priority === 'high' ? '#C2410C' : t.priority === 'medium' ? '#C9A227' : '#3C5A8A' }} />
+                <b>{t.title}</b>
+                <small className={due.late ? 'late' : ''}>{due.text}</small>
+              </Link>
+            );
+          })
+        )}
+      </div>
+    </section>
+  ) : null;
+
+  const movesCard = isIt ? (
+    <section className="db-card" style={{ overflow: 'hidden' }}>
+      <div className="db-sec-head">
+        <div>
+          <h2>Ultimi movimenti</h2>
+          <p>Consegne e restituzioni registrate dai form studenti</p>
+        </div>
+        <Link href="/device-history">Vedi tutto</Link>
+      </div>
+      {moves === null ? (
+        <div className="db-empty">{loading ? 'Caricamento…' : 'Movimenti non disponibili.'}</div>
+      ) : moves.length === 0 ? (
+        <div className="db-empty">Nessun movimento registrato.</div>
+      ) : (
+        <>
+          <div className="db-table-wrap">
+            <table className="db-table">
+              <thead>
+                <tr>
+                  <th>Quando</th>
+                  <th>Studente</th>
+                  <th>Operazione</th>
+                  <th>MacBook</th>
+                  <th>iPad</th>
+                  <th>Firmato da</th>
+                </tr>
+              </thead>
+              <tbody>
+                {moves.map((m) => (
+                  <tr key={m.id}>
+                    <td>{when(m.created_at)}</td>
+                    <td>{m.student_email}</td>
+                    <td>
+                      <span className={'ui-chip ' + (m.operation === 'Check-out' ? 'out' : 'in')}>
+                        {m.operation === 'Check-out' ? 'Consegna' : 'Restituzione'}
+                      </span>
+                    </td>
+                    <td>{m.macbook_id || '—'}</td>
+                    <td>{m.ipad_id || '—'}</td>
+                    <td>{m.signed_by || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="db-list">
+            {moves.map((m) => (
+              <div className="db-list-row" key={m.id}>
+                <div>
+                  <b>{m.student_email.split('@')[0]}</b>
+                  <small>
+                    {[m.macbook_id && `MacBook ${m.macbook_id}`, m.ipad_id && `iPad ${m.ipad_id}`].filter(Boolean).join(' · ') || when(m.created_at)}
+                  </small>
+                </div>
+                <span className={'ui-chip ' + (m.operation === 'Check-out' ? 'out' : 'in')}>
+                  {m.operation === 'Check-out' ? 'Consegna' : 'Restituzione'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  ) : null;
+
+  const purchasesCard = canPurchases ? (
+    <section className="db-card" style={{ overflow: 'hidden' }}>
+      <div className="db-sec-head">
+        <div>
+          <h2>{canAllPurchases ? 'Latest purchase requests' : 'My purchase requests'}</h2>
+          <p>H-IS Vicenza · Purchases</p>
+        </div>
+        <Link href="/purchases">View all</Link>
+      </div>
+      {purchases === null ? (
+        <div className="db-empty">{loading ? 'Loading…' : 'Requests not available.'}</div>
+      ) : purchases.length === 0 ? (
+        <div className="db-empty">No purchase requests yet.</div>
+      ) : (
+        <>
+          <div className="db-table-wrap">
+            <table className="db-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Requested by</th>
+                  <th>Items</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchases.slice(0, 6).map((r) => (
+                  <tr key={r.id}>
+                    <td>{when(r.created_at)}</td>
+                    <td>
+                      {r.requester_first} {r.requester_last}
+                    </td>
+                    <td style={{ whiteSpace: 'normal' }}>
+                      {r.items[0]?.name}
+                      {r.items.length > 1 ? ` +${r.items.length - 1}` : ''}
+                    </td>
+                    <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{eur.format(r.total)}</td>
+                    <td>
+                      <span className={'ui-chip ' + (r.status === 'sent' ? 'ok' : r.status === 'not_sent' ? 'warn' : 'muted')}>
+                        {r.status === 'sent' ? 'Sent' : r.status === 'not_sent' ? 'Not sent' : 'Pending'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="db-list">
+            {purchases.slice(0, 6).map((r) => (
+              <div className="db-list-row" key={r.id}>
+                <div>
+                  <b>
+                    {r.items[0]?.name}
+                    {r.items.length > 1 ? ` +${r.items.length - 1}` : ''}
+                  </b>
+                  <small>
+                    {r.requester_first} {r.requester_last} · {eur.format(r.total)}
+                  </small>
+                </div>
+                <span className={'ui-chip ' + (r.status === 'sent' ? 'ok' : 'warn')}>{r.status === 'sent' ? 'Sent' : 'Not sent'}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  ) : null;
+
+  const left = movesCard ?? purchasesCard;
+  const right = budgetCard || tasksCard ? (
+    <div className="db-col">
+      {budgetCard}
+      {tasksCard}
+    </div>
+  ) : null;
 
   return (
     <>
       <div className="db">
         <div className="db-hello">
           <div>
-            <div className="db-date">{new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+            <div className="db-date">
+              {new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              {company ? ` · ${company.name}` : ''}
+            </div>
             <h1>
               {greeting()}
               {first ? (
@@ -170,6 +431,18 @@ export default function Dashboard() {
               <Link className="ui-btn primary" href="/room-assignment">
                 <Icon name="house" size={17} />
                 Assegna una camera
+              </Link>
+            ) : null}
+            {!onVe && canBudget ? (
+              <Link className={'ui-btn' + (canPurchases ? '' : ' primary')} href={budgetHref}>
+                <Icon name="wallet" size={17} />
+                Budget
+              </Link>
+            ) : null}
+            {canPurchases ? (
+              <Link className="ui-btn primary" href="/purchases/new">
+                <Icon name="cart" size={17} />
+                New purchase request
               </Link>
             ) : null}
           </div>
@@ -227,129 +500,57 @@ export default function Dashboard() {
           ) : null
         ) : null}
 
-        {isIt ? (
-          <div className={isAdmin ? 'db-split' : ''}>
-            <section className="db-card" style={{ overflow: 'hidden' }}>
-              <div className="db-sec-head">
-                <div>
-                  <h2>Ultimi movimenti</h2>
-                  <p>Consegne e restituzioni registrate dai form studenti</p>
-                </div>
-                <Link href="/device-history">Vedi tutto</Link>
-              </div>
-              {moves === null ? (
-                <div className="db-empty">{loading ? 'Caricamento…' : 'Movimenti non disponibili.'}</div>
-              ) : moves.length === 0 ? (
-                <div className="db-empty">Nessun movimento registrato.</div>
-              ) : (
+        {!onVe && (canBudget || canPurchases) ? (
+          loading && !budget && !purchases ? (
+            <div className="db-kpis">
+              <div className="db-skel" />
+              <div className="db-skel" />
+              <div className="db-skel" />
+            </div>
+          ) : (
+            <div className="db-kpis">
+              {budget ? (
                 <>
-                  <div className="db-table-wrap">
-                    <table className="db-table">
-                      <thead>
-                        <tr>
-                          <th>Quando</th>
-                          <th>Studente</th>
-                          <th>Operazione</th>
-                          <th>MacBook</th>
-                          <th>iPad</th>
-                          <th>Firmato da</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {moves.map((m) => (
-                          <tr key={m.id}>
-                            <td>{when(m.created_at)}</td>
-                            <td>{m.student_email}</td>
-                            <td>
-                              <span className={'ui-chip ' + (m.operation === 'Check-out' ? 'out' : 'in')}>
-                                {m.operation === 'Check-out' ? 'Consegna' : 'Restituzione'}
-                              </span>
-                            </td>
-                            <td>{m.macbook_id || '—'}</td>
-                            <td>{m.ipad_id || '—'}</td>
-                            <td>{m.signed_by || '—'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="db-card db-kpi">
+                    <div className="db-kpi-top">Budget stanziato</div>
+                    <div className="db-kpi-val">{eur0.format(budAlloc)}</div>
+                    <div className="db-kpi-sub">{budget.length} commesse</div>
                   </div>
-                  <div className="db-list">
-                    {moves.map((m) => (
-                      <div className="db-list-row" key={m.id}>
-                        <div>
-                          <b>{m.student_email.split('@')[0]}</b>
-                          <small>
-                            {[m.macbook_id && `MacBook ${m.macbook_id}`, m.ipad_id && `iPad ${m.ipad_id}`].filter(Boolean).join(' · ') || when(m.created_at)}
-                          </small>
-                        </div>
-                        <span className={'ui-chip ' + (m.operation === 'Check-out' ? 'out' : 'in')}>
-                          {m.operation === 'Check-out' ? 'Consegna' : 'Restituzione'}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="db-card db-kpi">
+                    <div className="db-kpi-top">Speso</div>
+                    <div className="db-kpi-val">{eur0.format(budSpent)}</div>
+                    <div className="db-kpi-sub">{budAlloc ? Math.round((budSpent / budAlloc) * 100) : 0}% del budget</div>
+                  </div>
+                  <div className="db-card db-kpi">
+                    <div className="db-kpi-top">Disponibile</div>
+                    <div className="db-kpi-val" style={{ color: budAlloc - budSpent < 0 ? '#A32D2D' : '#1F5A48' }}>
+                      {eur0.format(budAlloc - budSpent)}
+                    </div>
+                    <div className="db-kpi-sub">{budAlloc - budSpent < 0 ? 'Budget superato' : 'residuo'}</div>
                   </div>
                 </>
-              )}
-            </section>
-
-            {isAdmin ? (
-              <div className="db-col">
-                {budget ? (
-                  <section className="db-card">
-                    <div className="db-sec-head">
-                      <h2>Budget IT 26/27</h2>
-                      <Link href="/budget-management">Apri</Link>
-                    </div>
-                    <div className="db-budget">
-                      {budget.map((b) => {
-                        const pct = b.allocated ? Math.round((b.spent / b.allocated) * 100) : 0;
-                        return (
-                          <Link key={b.code} href={`/budget-management/${b.code}`} className="db-budget-row" style={{ textDecoration: 'none', color: 'inherit' }}>
-                            <div>
-                              <b>{b.name}</b>
-                              <span>
-                                {pct}% di {eur0.format(b.allocated)}
-                              </span>
-                            </div>
-                            <div className="db-track">
-                              <i className={pct > 100 ? 'over' : ''} style={{ width: `${Math.min(100, pct)}%` }} />
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ) : null}
-                {tasks ? (
-                  <section className="db-card">
-                    <div className="db-sec-head">
-                      <h2>{tasks.mine ? 'Le mie task' : 'Prossime scadenze'}</h2>
-                      <Link href="/task-manager">Task Manager</Link>
-                    </div>
-                    <div className="db-tasks">
-                      {tasks.list.length === 0 ? (
-                        <div className="db-empty">Nessuna task aperta.</div>
-                      ) : (
-                        tasks.list.map((t) => {
-                          const due = dueLabel(t.due_date);
-                          return (
-                            <Link key={t.id} href={`/task-manager?task=${t.id}`} className="db-task">
-                              <i style={{ background: t.priority === 'high' ? '#C2410C' : t.priority === 'medium' ? '#C9A227' : '#3C5A8A' }} />
-                              <b>{t.title}</b>
-                              <small className={due.late ? 'late' : ''}>{due.text}</small>
-                            </Link>
-                          );
-                        })
-                      )}
-                    </div>
-                  </section>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+              ) : null}
+              {purchases ? (
+                <div className="db-card db-kpi">
+                  <div className="db-kpi-top">Purchase requests · this month</div>
+                  <div className="db-kpi-val">{monthReqs.length}</div>
+                  <div className="db-kpi-sub">{eur.format(monthReqs.reduce((t, r) => t + r.total, 0))} requested</div>
+                </div>
+              ) : null}
+            </div>
+          )
         ) : null}
 
-        {!isIt && quick.length ? (
+        {left && right ? (
+          <div className="db-split">
+            {left}
+            {right}
+          </div>
+        ) : (
+          left ?? right
+        )}
+
+        {quick.length && !isIt ? (
           <section className="db-sections">
             <h2>Collegamenti rapidi</h2>
             <div className="db-tiles">
@@ -371,25 +572,34 @@ export default function Dashboard() {
           </section>
         ) : null}
 
-        <section className="db-sections">
-          <h2>Le tue sezioni</h2>
-          <div className="db-tiles">
-            {sections.map((s) => {
-              const meta = SECTION_META[s.href] ?? { desc: '', color: '#8B1A2B', soft: '#F9EFF0' };
-              return (
-                <Link key={s.href} href={s.href} className="db-tile">
-                  <span className="db-tile-ic" style={{ background: meta.soft, color: meta.color }}>
-                    <Icon name={s.icon as IconName} size={20} />
-                  </span>
-                  <span>
-                    <b>{s.label}</b>
-                    <span>{meta.desc}</span>
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
+        {sections.length ? (
+          <section className="db-sections">
+            <h2>Le tue sezioni{company ? ` · ${company.name}` : ''}</h2>
+            <div className="db-tiles">
+              {sections.map((s) => {
+                const meta = SECTION_META[s.href] ?? { desc: '', color: '#8B1A2B', soft: '#F9EFF0' };
+                return (
+                  <Link key={s.href} href={s.href} className="db-tile">
+                    <span className="db-tile-ic" style={{ background: meta.soft, color: meta.color }}>
+                      <Icon name={s.icon as IconName} size={20} />
+                    </span>
+                    <span>
+                      <b>{s.label}</b>
+                      <span>{meta.desc}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ) : (
+          <section className="db-card">
+            <div className="db-empty">
+              Per il tuo ruolo non ci sono ancora sezioni disponibili{company ? ` in ${company.name}` : ''}. Quando verranno attivate le
+              troverai qui e nel menu.
+            </div>
+          </section>
+        )}
       </div>
       <Footer text="" />
     </>

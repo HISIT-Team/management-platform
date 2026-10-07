@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "properties": {
+    "request_id": { "type": "string" },
+    "company": { "type": "string" },
+    "type": { "type": "string" },
+    "first_name": { "type": "string" },
+    "last_name": { "type": "string" },
+    "email": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "n": { "type": "integer" },
+          "name": { "type": "string" },
+          "link": { "type": "string" },
+          "quantity": { "type": "number" },
+          "unit_price": { "type": "number" },
+          "total": { "type": "number" }
+        }
+      }
+    },
+    "items_count": { "type": "integer" },
+    "total": { "type": "number" },
+    "notes": { "type": "string" },
+    "submitted_at": { "type": "string" },
+    "_submitted_by_email": { "type": "string" },
+    "_submitted_by_id": { "type": "string" },
+    "_submitted_by_role": { "type": "string" },
+    "_server_timestamp": { "type": "string" }
+  }
+}

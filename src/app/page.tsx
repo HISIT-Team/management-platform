@@ -40,8 +40,10 @@ export default function HomePage() {
       const perms = await loadMyPermissions();
       if (!active) return;
       const hasSection = navFor({ roles, perms }).some((g) => g.items.some((i) => i.href !== '/'));
+      // Roles of one company (e.g. teachers.hro) get the platform even with no section yet.
+      const companyRole = roles.some((r) => /\.(hvi|hro)$/.test(r));
       // Guests (new sign-ups) and accounts without any section get their own home.
-      if (roles.includes('guest') || !hasSection) {
+      if (roles.includes('guest') || (!hasSection && !companyRole)) {
         window.location.replace('/guest');
         return;
       }

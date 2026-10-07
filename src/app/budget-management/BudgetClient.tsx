@@ -6,7 +6,6 @@
    Expenses are persisted in Supabase, scoped by school
    (see src/lib/budgets.ts). */
 import React, { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
@@ -21,10 +20,16 @@ import {
   formatDate,
   formatEUR,
   formatEURShort,
-  lineByCode,
+  type BudgetAdjustment,
+  BUDGET_PERM,
+  LINE_ACCENTS,
+  adjustBudgetLine,
+  archiveBudgetLine,
+  createBudgetLine,
+  listAdjustments,
+  listBudgetLines,
   listExpenses,
   todayISO,
-  totalAllocated,
   totalsByCode,
 } from '@/lib/budgets';
 
@@ -56,11 +61,6 @@ const IconTrash = (
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
-const IconSwitch = (
-  <svg viewBox="0 0 24 24">
-    <polyline points="15 18 9 12 15 6" />
-  </svg>
-);
 
 /* One icon per budget line, keyed by code. */
 const LINE_ICONS: Record<string, React.ReactNode> = {
@@ -85,6 +85,19 @@ const LINE_ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
+const LINE_ICON_DEFAULT = (
+  <svg viewBox="0 0 24 24">
+    <path d="M3 7a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v2" />
+    <path d="M3 7v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2H5" />
+    <circle cx="17" cy="13.5" r="1.3" />
+  </svg>
+);
+const IconScale = (
+  <svg viewBox="0 0 24 24">
+    <path d="M12 3v18M5 8h14M7 8l-4 7a4 4 0 0 0 8 0zM17 8l-4 7a4 4 0 0 0 8 0z" />
+  </svg>
+);
+
 /* ── Helpers ───────────────────────────────────────────────────── */
 const accentVars = (l: BudgetLine) =>
   ({ '--accent': l.accent, '--accent-soft': l.accentSoft }) as React.CSSProperties;
@@ -93,7 +106,8 @@ const accentVars = (l: BudgetLine) =>
 function parseAmount(raw: string): number {
   const s = raw.trim();
   if (!s) return NaN;
-  const normalised = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  // "2.500" (no comma, dots every 3 digits) is Italian thousands, not 2,5.
+  const normalised = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : /^\d{1,3}(\.\d{3})+$/.test(s) ? s.replace(/\./g, '') : s;
   return Number(normalised.replace(/[^\d.-]/g, ''));
 }
 
@@ -116,8 +130,24 @@ const CIRC = 2 * Math.PI * R;
 export default function BudgetClient({ school }: { school: School }) {
   const { showToast, toastNode } = useToast();
 
-  const lines = school.lines;
-  const allocated = useMemo(() => totalAllocated(school), [school]);
+  // Budget lines come from the database (migration 0018); the static ones
+  // in budgets.ts are only the fallback before it is run.
+  const [lines, setLines] = useState<BudgetLine[]>(school.lines);
+  const [linesFromDb, setLinesFromDb] = useState(false);
+  const [adjustments, setAdjustments] = useState<BudgetAdjustment[]>([]);
+  const allocated = useMemo(() => lines.reduce((t, l) => t + l.allocated, 0), [lines]);
+  const lineOf = (code: string) => lines.find((l) => l.code === code);
+
+  // New line / allocation change
+  const [newLineOpen, setNewLineOpen] = useState(false);
+  const [nlName, setNlName] = useState('');
+  const [nlCaption, setNlCaption] = useState('');
+  const [nlAmount, setNlAmount] = useState('');
+  const [nlAccent, setNlAccent] = useState(0);
+  const [adjLine, setAdjLine] = useState<BudgetLine | null>(null);
+  const [adjSign, setAdjSign] = useState<1 | -1>(1);
+  const [adjAmount, setAdjAmount] = useState('');
+  const [adjReason, setAdjReason] = useState('');
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,8 +169,25 @@ export default function BudgetClient({ school }: { school: School }) {
 
   // Initial load: this school's ledger, plus the signed-in user's display
   // name (stamped on every expense they record).
+  const reloadLines = async () => {
+    const [ls, adj] = await Promise.all([listBudgetLines(school.code), listAdjustments(school.code)]);
+    if (ls) {
+      setLines(ls);
+      setLinesFromDb(true);
+    }
+    setAdjustments(adj);
+  };
+
   useEffect(() => {
     let active = true;
+    Promise.all([listBudgetLines(school.code), listAdjustments(school.code)]).then(([ls, adj]) => {
+      if (!active) return;
+      if (ls) {
+        setLines(ls);
+        setLinesFromDb(true);
+      }
+      setAdjustments(adj);
+    });
     listExpenses(school.code)
       .then((rows) => {
         if (!active) return;
@@ -180,13 +227,15 @@ export default function BudgetClient({ school }: { school: School }) {
     function onKey(ev: KeyboardEvent) {
       if (ev.key !== 'Escape') return;
       if (toDelete) setToDelete(null);
+      else if (adjLine && !busy) setAdjLine(null);
+      else if (newLineOpen && !busy) setNewLineOpen(false);
       else if (formOpen && !busy) setFormOpen(false);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [formOpen, toDelete, busy]);
+  }, [formOpen, toDelete, busy, adjLine, newLineOpen]);
 
-  const spentByCode = useMemo(() => totalsByCode(school, expenses), [school, expenses]);
+  const spentByCode = useMemo(() => totalsByCode(lines, expenses), [lines, expenses]);
   const countByCode = useMemo(() => {
     const out: Record<string, number> = {};
     for (const b of lines) out[b.code] = 0;
@@ -214,7 +263,7 @@ export default function BudgetClient({ school }: { school: School }) {
         `Budget ${school.name}`,
         [
           { header: 'Data', type: 'date', width: 12, value: (e) => asLocalDate(e.spent_on) },
-          { header: 'Commessa', width: 34, value: (e) => lineByCode(school, e.budget_code)?.name ?? e.budget_code },
+          { header: 'Commessa', width: 34, value: (e) => lineOf(e.budget_code)?.name ?? e.budget_code },
           { header: 'Descrizione', width: 44, value: (e) => e.description },
           { header: 'Fornitore', width: 24, value: (e) => e.supplier ?? '' },
           { header: 'Importo', type: 'euro', width: 14, value: (e) => e.amount },
@@ -286,7 +335,72 @@ export default function BudgetClient({ school }: { school: School }) {
     setBusy(false);
   }
 
-  const selectedLine = lineByCode(school, fCode) || lines[0];
+  async function handleCreateLine() {
+    const amount = nlAmount.trim() ? parseAmount(nlAmount) : 0;
+    if (!nlName.trim()) return showToast('Dai un nome alla commessa.', true);
+    if (!Number.isFinite(amount) || amount < 0) return showToast('Inserisci uno stanziamento valido (0 o più).', true);
+    setBusy(true);
+    try {
+      const a = LINE_ACCENTS[nlAccent] ?? LINE_ACCENTS[0];
+      await createBudgetLine(school.code, { name: nlName.trim(), caption: nlCaption.trim(), allocated: Math.round(amount * 100) / 100, accent: a.accent, accentSoft: a.soft });
+      await reloadLines();
+      setNewLineOpen(false);
+      showToast(`Commessa «${nlName.trim()}» creata ✓`);
+    } catch (e) {
+      showToast('Errore: ' + (e as Error).message, true);
+    }
+    setBusy(false);
+  }
+
+  function openNewLine() {
+    setNlName('');
+    setNlCaption('');
+    setNlAmount('');
+    setNlAccent(lines.length % LINE_ACCENTS.length);
+    setNewLineOpen(true);
+  }
+
+  function openAdjust(l: BudgetLine) {
+    setAdjLine(l);
+    setAdjSign(1);
+    setAdjAmount('');
+    setAdjReason('');
+  }
+
+  async function handleAdjust() {
+    if (!adjLine) return;
+    const amount = parseAmount(adjAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return showToast('Inserisci un importo maggiore di zero.', true);
+    if (adjSign < 0 && amount > adjLine.allocated) return showToast('Lo stanziamento non può scendere sotto zero.', true);
+    setBusy(true);
+    try {
+      const after = await adjustBudgetLine(school.code, adjLine.code, adjSign * Math.round(amount * 100) / 100, adjReason.trim());
+      await reloadLines();
+      setAdjLine(null);
+      showToast(`${adjLine.name}: stanziamento ${adjSign > 0 ? 'aumentato' : 'ridotto'} — ora ${formatEURShort(after)} ✓`);
+    } catch (e) {
+      showToast('Errore: ' + (e as Error).message, true);
+    }
+    setBusy(false);
+  }
+
+  async function handleArchive() {
+    if (!adjLine) return;
+    if (!window.confirm(`Rimuovere la commessa «${adjLine.name}»? Si può fare solo se non ha spese.`)) return;
+    setBusy(true);
+    try {
+      await archiveBudgetLine(school.code, adjLine.code);
+      await reloadLines();
+      if (filter === adjLine.code) setFilter('all');
+      setAdjLine(null);
+      showToast('Commessa rimossa');
+    } catch (e) {
+      showToast('Errore: ' + (e as Error).message, true);
+    }
+    setBusy(false);
+  }
+
+  const selectedLine = lineOf(fCode) || lines[0];
   const previewAmount = parseAmount(fAmount);
   const previewLeft = selectedLine
     ? selectedLine.allocated -
@@ -295,8 +409,8 @@ export default function BudgetClient({ school }: { school: School }) {
     : 0;
 
   return (
-    <AuthGuard roles={['admin']} perm="it.budget">
-      <Topbar label="Scuole" href="/budget-management" variant="back" />
+    <AuthGuard roles={['admin']} perm={BUDGET_PERM[school.code] ?? 'it.budget'}>
+      {school.code === 'venezia' ? <Topbar label="IT" href="/it" variant="back" /> : null}
       <div className="budget-page">
         <div className="shell">
           {/* ── Head ── */}
@@ -304,7 +418,7 @@ export default function BudgetClient({ school }: { school: School }) {
             <div className="b-head-left">
               <div className="logo">{IconWallet}</div>
               <div>
-                <p className="b-eyebrow">Budget Management · 26/27</p>
+                <p className="b-eyebrow">H-IS {school.name} · Budget e commesse</p>
                 <h1>
                   {school.name} <em>Budget</em>
                 </h1>
@@ -322,7 +436,13 @@ export default function BudgetClient({ school }: { school: School }) {
                 </svg>
                 {filter === 'all' ? 'Esporta Excel' : 'Esporta Excel (filtrate)'}
               </button>
-              <button className="btn-primary" onClick={() => openForm()}>
+              {linesFromDb ? (
+                <button className="btn-quiet" onClick={openNewLine}>
+                  {IconPlus}
+                  Nuova commessa
+                </button>
+              ) : null}
+              <button className="btn-primary" onClick={() => openForm()} disabled={!lines.length}>
                 {IconPlus}
                 Nuova spesa
               </button>
@@ -428,7 +548,7 @@ export default function BudgetClient({ school }: { school: School }) {
               return (
                 <article key={l.code} className={'bline' + (left < 0 ? ' over' : '')} style={accentVars(l)}>
                   <div className="bline-top">
-                    <div className="bline-chip">{LINE_ICONS[l.code]}</div>
+                    <div className="bline-chip">{LINE_ICONS[l.code] ?? LINE_ICON_DEFAULT}</div>
                     <div>
                       <div className="bline-name">{l.name}</div>
                       <div className="bline-caption">{l.caption}</div>
@@ -461,10 +581,18 @@ export default function BudgetClient({ school }: { school: School }) {
                     <span className="bline-count">
                       {countByCode[l.code] || 0} {countByCode[l.code] === 1 ? 'movimento' : 'movimenti'}
                     </span>
-                    <button className="btn-quiet" onClick={() => openForm(l.code)}>
-                      {IconPlus}
-                      Aggiungi spesa
-                    </button>
+                    <div className="bline-actions">
+                      {linesFromDb ? (
+                        <button className="btn-quiet" onClick={() => openAdjust(l)} title="Aumenta o riduci lo stanziamento">
+                          {IconScale}
+                          Budget
+                        </button>
+                      ) : null}
+                      <button className="btn-quiet" onClick={() => openForm(l.code)}>
+                        {IconPlus}
+                        Spesa
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -514,7 +642,7 @@ export default function BudgetClient({ school }: { school: School }) {
                   </thead>
                   <tbody>
                     {visible.map((e) => {
-                      const l = lineByCode(school, e.budget_code);
+                      const l = lineOf(e.budget_code);
                       return (
                         <tr key={e.id}>
                           <td className="col-date">{formatDate(e.spent_on)}</td>
@@ -553,7 +681,7 @@ export default function BudgetClient({ school }: { school: School }) {
                     })}
                     <tr>
                       <td colSpan={3} style={{ fontWeight: 700 }}>
-                        Totale {filter === 'all' ? 'movimenti' : lineByCode(school, filter)?.name}
+                        Totale {filter === 'all' ? 'movimenti' : lineOf(filter)?.name}
                       </td>
                       <td className="col-amount">{formatEUR(visibleTotal)}</td>
                       <td />
@@ -564,15 +692,9 @@ export default function BudgetClient({ school }: { school: School }) {
             )}
           </div>
 
-          <p style={{ marginTop: '1.25rem' }}>
-            <Link className="btn-quiet" href="/budget-management" style={{ textDecoration: 'none' }}>
-              {IconSwitch}
-              Cambia scuola
-            </Link>
-          </p>
 
           <footer className="b-footer">
-            H-FARM International School · IT — Budget Management {school.name}
+            H-FARM International School · Budget {school.name}
             <span>Via Adriano Olivetti 1 - 31056 Roncade (TV)</span>
           </footer>
         </div>
@@ -723,9 +845,7 @@ export default function BudgetClient({ school }: { school: School }) {
                 <p className="confirm-text">
                   <strong>{toDelete.description}</strong> — {formatEUR(toDelete.amount)} del{' '}
                   {formatDate(toDelete.spent_on)}
-                  {lineByCode(school, toDelete.budget_code)
-                    ? ' su ' + lineByCode(school, toDelete.budget_code)!.name
-                    : ''}
+                  {lineOf(toDelete.budget_code) ? ' su ' + lineOf(toDelete.budget_code)!.name : ''}
                   .
                 </p>
               </div>
@@ -741,8 +861,192 @@ export default function BudgetClient({ school }: { school: School }) {
           </div>
         ) : null}
 
+        {/* ── New budget line ── */}
+        {newLineOpen ? (
+          <div
+            className="b-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nuova commessa"
+            onMouseDown={(ev) => {
+              if (ev.target === ev.currentTarget && !busy) setNewLineOpen(false);
+            }}
+          >
+            <div className="b-modal" style={{ ['--accent' as string]: LINE_ACCENTS[nlAccent].accent, ['--accent-soft' as string]: LINE_ACCENTS[nlAccent].soft } as React.CSSProperties}>
+              <div className="b-modal-head">
+                <div className="mi">{IconPlus}</div>
+                <div>
+                  <h2>Nuova commessa</h2>
+                  <p>H-IS {school.name} · comparirà subito nella dashboard</p>
+                </div>
+                <button className="b-modal-close" onClick={() => setNewLineOpen(false)} disabled={busy} aria-label="Chiudi">
+                  {IconClose}
+                </button>
+              </div>
+              <div className="b-modal-body">
+                <div className="field">
+                  <label htmlFor="nl-name">
+                    Nome <span className="req">*</span>
+                  </label>
+                  <input id="nl-name" type="text" maxLength={120} placeholder="es. Arredi aule 26/27" value={nlName} onChange={(e) => setNlName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="nl-caption">Descrizione breve</label>
+                  <input id="nl-caption" type="text" maxLength={160} placeholder="es. Banchi, sedie e lavagne" value={nlCaption} onChange={(e) => setNlCaption(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="nl-amount">Stanziamento iniziale</label>
+                  <div className="amount-wrap">
+                    <span>€</span>
+                    <input id="nl-amount" type="text" inputMode="decimal" placeholder="10.000,00" value={nlAmount} onChange={(e) => setNlAmount(e.target.value)} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Colore</label>
+                  <div className="nl-colors" role="radiogroup" aria-label="Colore della commessa">
+                    {LINE_ACCENTS.map((a, i) => (
+                      <button
+                        key={a.accent}
+                        type="button"
+                        role="radio"
+                        aria-checked={nlAccent === i}
+                        aria-label={`Colore ${i + 1}`}
+                        className={'nl-color' + (nlAccent === i ? ' on' : '')}
+                        style={{ background: a.accent }}
+                        onClick={() => setNlAccent(i)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="b-modal-foot">
+                <button className="btn-quiet" onClick={() => setNewLineOpen(false)} disabled={busy}>
+                  Annulla
+                </button>
+                <button className="btn-primary" onClick={handleCreateLine} disabled={busy}>
+                  {busy ? 'Creazione…' : 'Crea commessa'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── Allocation of a line ── */}
+        {adjLine ? (
+          <div
+            className="b-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Stanziamento della commessa"
+            onMouseDown={(ev) => {
+              if (ev.target === ev.currentTarget && !busy) setAdjLine(null);
+            }}
+          >
+            <div className="b-modal" style={accentVars(adjLine)}>
+              <div className="b-modal-head">
+                <div className="mi">{IconScale}</div>
+                <div>
+                  <h2>Budget della commessa</h2>
+                  <p>
+                    {adjLine.name} · stanziato {formatEURShort(adjLine.allocated)}
+                  </p>
+                </div>
+                <button className="b-modal-close" onClick={() => setAdjLine(null)} disabled={busy} aria-label="Chiudi">
+                  {IconClose}
+                </button>
+              </div>
+              <div className="b-modal-body">
+                <div className="field">
+                  <label>Operazione</label>
+                  <div className="adj-seg" role="radiogroup" aria-label="Aumenta o riduci">
+                    <button type="button" role="radio" aria-checked={adjSign === 1} className={adjSign === 1 ? 'on' : ''} onClick={() => setAdjSign(1)}>
+                      + Aggiungi budget
+                    </button>
+                    <button type="button" role="radio" aria-checked={adjSign === -1} className={adjSign === -1 ? 'on' : ''} onClick={() => setAdjSign(-1)}>
+                      − Togli budget
+                    </button>
+                  </div>
+                </div>
+                <div className="field">
+                  <label htmlFor="adj-amount">
+                    Importo <span className="req">*</span>
+                  </label>
+                  <div className="amount-wrap">
+                    <span>€</span>
+                    <input id="adj-amount" type="text" inputMode="decimal" placeholder="5.000,00" value={adjAmount} onChange={(e) => setAdjAmount(e.target.value)} />
+                  </div>
+                </div>
+                <div className="field">
+                  <label htmlFor="adj-reason">Motivo</label>
+                  <input id="adj-reason" type="text" maxLength={200} placeholder="es. Integrazione approvata dal CdA" value={adjReason} onChange={(e) => setAdjReason(e.target.value)} />
+                </div>
+                {(() => {
+                  const v = parseAmount(adjAmount);
+                  const after = adjLine.allocated + (Number.isFinite(v) && v > 0 ? adjSign * v : 0);
+                  return (
+                    <div className={'preview' + (after < (spentByCode[adjLine.code] || 0) ? ' over' : '')}>
+                      <span>Nuovo stanziamento</span>
+                      <b>{formatEUR(after)}</b>
+                    </div>
+                  );
+                })()}
+                {adjustments.filter((a) => a.budget_code === adjLine.code).length ? (
+                  <div className="adj-history">
+                    <div className="adj-history-title">Storico modifiche</div>
+                    {adjustments
+                      .filter((a) => a.budget_code === adjLine.code)
+                      .slice(0, 8)
+                      .map((a) => (
+                        <div className="adj-row" key={a.id}>
+                          <span className={a.amount < 0 ? 'neg' : 'pos'}>
+                            {a.kind === 'create' ? 'Creata · ' : ''}
+                            {a.amount < 0 ? '− ' : '+ '}
+                            {formatEURShort(Math.abs(a.amount))}
+                          </span>
+                          <small>
+                            {formatDate(a.created_at.slice(0, 10))} · {a.created_by_name ?? '—'}
+                            {a.reason && a.kind !== 'create' ? ' · ' + a.reason : ''}
+                          </small>
+                        </div>
+                      ))}
+                  </div>
+                ) : null}
+              </div>
+              <div className="b-modal-foot">
+                {!countByCode[adjLine.code] ? (
+                  <button className="btn-quiet adj-remove" onClick={handleArchive} disabled={busy} title="Solo per commesse senza spese">
+                    Rimuovi commessa
+                  </button>
+                ) : null}
+                <button className="btn-quiet" onClick={() => setAdjLine(null)} disabled={busy}>
+                  Annulla
+                </button>
+                <button className="btn-primary" onClick={handleAdjust} disabled={busy}>
+                  {busy ? 'Salvataggio…' : 'Salva'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {toastNode}
       </div>
+      <style>{`
+        .budget-page .bline-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .budget-page .nl-colors { display: flex; gap: 8px; flex-wrap: wrap; }
+        .budget-page .nl-color { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1.5px #E2D8D6; cursor: pointer; }
+        .budget-page .nl-color.on { box-shadow: 0 0 0 2.5px var(--b-ink); }
+        .budget-page .adj-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .budget-page .adj-seg button { height: 42px; border-radius: 11px; border: 1.5px solid var(--b-line); background: #fff; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--b-muted); cursor: pointer; }
+        .budget-page .adj-seg button.on { border-color: var(--accent, var(--brand)); color: var(--accent, var(--brand)); background: var(--accent-soft, var(--brand-light)); }
+        .budget-page .adj-history { margin-top: 14px; border-top: 1px solid var(--b-line); padding-top: 10px; }
+        .budget-page .adj-history-title { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--b-faint); margin-bottom: 6px; }
+        .budget-page .adj-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
+        .budget-page .adj-row .pos { color: #1F5A48; font-weight: 700; }
+        .budget-page .adj-row .neg { color: #A32D2D; font-weight: 700; }
+        .budget-page .adj-row small { color: var(--b-muted); text-align: right; }
+        .budget-page .adj-remove { margin-right: auto; color: #A32D2D; }
+      `}</style>
     </AuthGuard>
   );
 }

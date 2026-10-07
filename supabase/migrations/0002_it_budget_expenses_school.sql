@@ -1,4 +1,6 @@
 -- ═══════════════════════════════════════════════════════════════════
+-- NOTE: since 0018 budget lines live in budget_lines and expense access is per
+--       school (vi.budget / ro.budget / it.budget): re-run 0018 after this file.
 -- IT Budget Management — split the ledger per school.
 -- Run this in the Supabase SQL Editor after 0001.
 --

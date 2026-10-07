@@ -6,7 +6,7 @@ import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
-import { SCHOOLS, type Expense, type School, formatEURShort, lineByCode, listExpenses, totalAllocated } from '@/lib/budgets';
+import { SCHOOLS, type BudgetLine, type Expense, type School, formatEURShort, listBudgetLines, listExpenses, totalAllocated } from '@/lib/budgets';
 import { asLocalDate, exportExcel } from '@/lib/excel';
 
 const IconWallet = (
@@ -34,9 +34,9 @@ function monogram(name: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
-function SchoolInner({ school, spent }: { school: School; spent?: number }) {
+function SchoolInner({ school, spent, lines }: { school: School; spent?: number; lines?: BudgetLine[] }) {
   const wip = school.status === 'wip';
-  const alloc = totalAllocated(school);
+  const alloc = lines ? lines.reduce((t, l) => t + l.allocated, 0) : totalAllocated(school);
   const pct = spent !== undefined && alloc ? Math.round((spent / alloc) * 100) : null;
   return (
     <>
@@ -51,7 +51,7 @@ function SchoolInner({ school, spent }: { school: School; spent?: number }) {
             <span className="pill warn">Work in progress</span>
           ) : (
             <>
-              {school.lines.length} commesse · <b>{formatEURShort(alloc)}</b> stanziati
+              {(lines ?? school.lines).length} commesse · <b>{formatEURShort(alloc)}</b> stanziati
               {pct !== null ? (
                 <>
                   {' '}
@@ -76,12 +76,19 @@ export default function SchoolPickerClient() {
   const { showToast, toastNode } = useToast();
   const [all, setAll] = useState<Expense[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dbLines, setDbLines] = useState<Record<string, BudgetLine[]>>({});
 
   useEffect(() => {
     let active = true;
     Promise.all(SCHOOLS.filter((s) => s.status !== 'wip').map((s) => listExpenses(s.code)))
       .then((lists) => active && setAll(lists.flat()))
       .catch(() => active && setAll(null));
+    Promise.all(SCHOOLS.map((s) => listBudgetLines(s.code).then((l) => [s.code, l] as const))).then((pairs) => {
+      if (!active) return;
+      const out: Record<string, BudgetLine[]> = {};
+      for (const [code, l] of pairs) if (l) out[code] = l;
+      setDbLines(out);
+    });
     return () => {
       active = false;
     };
@@ -100,7 +107,7 @@ export default function SchoolPickerClient() {
         [
           { header: 'Scuola', width: 12, value: (e) => SCHOOLS.find((s) => s.code === e.school)?.name ?? e.school },
           { header: 'Data', type: 'date', width: 12, value: (e) => asLocalDate(e.spent_on) },
-          { header: 'Commessa', width: 34, value: (e) => { const sc = SCHOOLS.find((s) => s.code === e.school); return (sc && lineByCode(sc, e.budget_code)?.name) || e.budget_code; } },
+          { header: 'Commessa', width: 34, value: (e) => { const ls = dbLines[e.school] ?? SCHOOLS.find((s) => s.code === e.school)?.lines ?? []; return ls.find((l) => l.code === e.budget_code)?.name || e.budget_code; } },
           { header: 'Descrizione', width: 44, value: (e) => e.description },
           { header: 'Fornitore', width: 24, value: (e) => e.supplier ?? '' },
           { header: 'Importo', type: 'euro', width: 14, value: (e) => e.amount },
@@ -163,7 +170,7 @@ export default function SchoolPickerClient() {
                   href={`/budget-management/${s.code}`}
                   style={{ animationDelay: 0.08 + i * 0.07 + 's' }}
                 >
-                  <SchoolInner school={s} spent={spentBy(s.code)} />
+                  <SchoolInner school={s} spent={spentBy(s.code)} lines={dbLines[s.code]} />
                 </Link>
               ),
             )}

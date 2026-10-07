@@ -224,7 +224,7 @@ export const HUBS: Record<string, HubConfig> = {
       { icon: I.briefcase, name: 'Check-in/Check-out Employee', desc: 'Device delivery and return — staff', href: '/employee-checkinout-hub', perm: 'it.checkin_employee' },
       { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub', perm: 'it.registries' },
       { icon: I.grid, name: 'Storico assegnazioni', desc: 'Storico dispositivi studenti — ricerca per email o ID', href: '/device-history', perm: 'it.history' },
-      { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — Venezia, Vicenza, Rosà', href: '/budget-management', perm: 'it.budget' },
+      { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — H-IS Venezia', href: '/budget-management/venezia', perm: 'it.budget' },
       { icon: I.tasks, name: 'Task Manager', desc: 'Attività del team IT, gruppi di progetto e sotto-task', href: '/task-manager', perm: 'it.tasks' },
     ],
   },

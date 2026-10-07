@@ -193,7 +193,8 @@ export default function RolePermissionsClient() {
         {toastNode}
       </div>
       <style>{`
-        .rp-page .rp-table { min-width: 860px; }
+        .rp-page .rp-table { min-width: 1180px; }
+        .rp-page .rp-table th.rp-role { font-size: 10.5px; }
         .rp-page .rp-table th.rp-role { text-align: center; white-space: nowrap; }
         .rp-page .rp-table th.rp-locked { color: var(--b-faint); }
         .rp-page .rp-perm { min-width: 280px; }

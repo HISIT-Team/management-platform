@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- Owner role + permissions per role ("cosa vede ogni ruolo").
 -- Run once in the Supabase SQL Editor, AFTER 0016. Rieseguibile.
+-- NOTE: 0018 extends roles, permissions and the budget policies: if you
+-- re-run this file, re-run 0018 afterwards.
 --
 -- 1. OWNER — above Super Admin. It can do everything a Super Admin does
 --    and, in addition, only an Owner can:

@@ -4,7 +4,7 @@
    gets nothing and the widget is hidden.
    ═══════════════════════════════════════════════════════════════════ */
 import { getSupabase } from './supabase';
-import { SCHOOLS, totalAllocated } from './budgets';
+import { listBudgetLines, schoolByCode } from './budgets';
 import type { Task } from './tasks';
 
 export interface DeviceStats {
@@ -30,6 +30,7 @@ export interface RecentMove {
 export interface BudgetSummary {
   code: string;
   name: string;
+  accent: string;
   allocated: number;
   spent: number;
 }
@@ -93,12 +94,18 @@ export async function loadRecentMoves(limit = 6): Promise<RecentMove[] | null> {
   return (data ?? []) as RecentMove[];
 }
 
-export async function loadBudgetSummary(): Promise<BudgetSummary[] | null> {
-  const { data, error } = await getSupabase().from('it_budget_expenses').select('school, amount').limit(10000);
-  if (error) return null;
+/** Budget lines of one school with what has been spent on each. */
+export async function loadSchoolBudget(school: string): Promise<BudgetSummary[] | null> {
+  const sb = getSupabase();
+  const [lines, exp] = await Promise.all([
+    listBudgetLines(school),
+    sb.from('it_budget_expenses').select('budget_code, amount').eq('school', school).limit(10000),
+  ]);
+  if (exp.error) return null;
+  const base = lines ?? schoolByCode(school)?.lines ?? [];
   const spent: Record<string, number> = {};
-  for (const r of (data ?? []) as { school: string; amount: number }[]) spent[r.school] = (spent[r.school] ?? 0) + Number(r.amount || 0);
-  return SCHOOLS.map((s) => ({ code: s.code, name: s.name, allocated: totalAllocated(s), spent: Math.round((spent[s.code] ?? 0) * 100) / 100 }));
+  for (const r of (exp.data ?? []) as { budget_code: string; amount: number }[]) spent[r.budget_code] = (spent[r.budget_code] ?? 0) + Number(r.amount || 0);
+  return base.map((l) => ({ code: l.code, name: l.name, accent: l.accent, allocated: l.allocated, spent: Math.round((spent[l.code] ?? 0) * 100) / 100 }));
 }
 
 export async function loadTaskSummary(userId: string): Promise<TaskSummary | null> {
