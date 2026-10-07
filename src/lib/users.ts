@@ -77,6 +77,7 @@ export const AUDIT_ACTIONS: Record<string, string> = {
   user_edited: 'Utente modificato',
   user_deleted: 'Utente eliminato',
   device_record_deleted: 'Record storico eliminato',
+  device_record_updated: 'Record storico modificato',
   signatures_purged: 'Firme rimosse (conservazione)',
   mfa_policy_changed: 'Regola MFA cambiata',
   mfa_reset: 'MFA azzerata',

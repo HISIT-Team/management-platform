@@ -299,3 +299,18 @@
   .form-page .signer-grid.cols-2,
   .form-page .signer-grid.cols-3 { grid-template-columns: 1fr; }
 }
+
+/* ── Required fields ───────────────────────────────────────────── */
+.form-page .f-req { color: #B42318; font-weight: 700; margin-left: 2px; }
+.form-page .f-err { display: block; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: #B42318; }
+.form-page .f-bad input[type=text],
+.form-page .f-bad input[type=email],
+.form-page .f-bad select { border-color: #D92D20 !important; box-shadow: 0 0 0 3px rgba(217, 45, 32, .10) !important; }
+.form-page .section.f-bad { border-color: rgba(217, 45, 32, .55); }
+.form-page .f-bad .device-item:not(.selected),
+.form-page .f-bad .signer-item:not(.selected),
+.form-page .f-bad .big-option:not(.selected),
+.form-page .f-bad .add-photo { border-color: rgba(217, 45, 32, .55); }
+.form-page .f-bad canvas.sigpad { border-color: #D92D20; background: #FEF3F2; }
+.form-page .f-block + .damage-toggle { margin-top: .6rem; }
+.form-page .f-missing { margin: 0 0 .75rem; padding: .7rem 1rem; border-radius: var(--radius-md); background: #FEF3F2; color: #B42318; font-size: 13.5px; font-weight: 600; }

@@ -95,3 +95,30 @@ export async function deleteStudentDeviceLog(id: string): Promise<void> {
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) throw new Error('Record non eliminato: verifica di aver eseguito la migrazione 0006 in Supabase.');
 }
+
+export const SCHOOLS = ['H-INTERNATIONAL SCHOOL SRL', 'H-INTERNATIONAL SCHOOL VICENZA SRL', 'H-INTERNATIONAL SCHOOL ROSÀ SRL'];
+export const SIGNERS = ['Student', 'Parent', 'IT Support'];
+
+export type DeviceLogChanges = Pick<StudentDeviceLogRow, 'created_at' | 'operation' | 'student_email' | 'school' | 'macbook_id' | 'ipad_id' | 'signed_by'>;
+
+/* Edits one record (migration 0020). The signature can't be changed;
+   the change is written to the activity log. */
+export async function updateStudentDeviceLog(id: string, c: DeviceLogChanges): Promise<StudentDeviceLogRow> {
+  const { data, error } = await getSupabase().rpc('device_log_update', {
+    p_id: id,
+    p_created_at: c.created_at,
+    p_operation: c.operation,
+    p_email: c.student_email,
+    p_school: c.school,
+    p_macbook_id: c.macbook_id ?? '',
+    p_ipad_id: c.ipad_id ?? '',
+    p_signed_by: c.signed_by,
+  });
+  if (error) {
+    if (/device_log_update/.test(error.message) && /(not find|does not exist|schema cache)/i.test(error.message))
+      throw new Error('Modifica non disponibile: esegui la migrazione 0020 in Supabase.');
+    throw new Error(error.message);
+  }
+  const r = data as StudentDeviceLogRow & { signature?: unknown };
+  return { id: r.id, created_at: r.created_at, operation: r.operation, student_email: r.student_email, school: r.school, macbook_id: r.macbook_id, ipad_id: r.ipad_id, signed_by: r.signed_by };
+}

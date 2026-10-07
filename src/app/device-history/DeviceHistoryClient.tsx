@@ -1,14 +1,24 @@
 'use client';
 /* IT — Storico assegnazioni dispositivi studenti.
-   Read-only dashboard over `student_device_log` (written by the student
+   Dashboard over `student_device_log` (written by the student
    Check-in / Check-out form): full history, search by email or device ID,
    filters by operation and school, and who currently holds which device.
+   Each record can be edited (pencil, migration 0020) or deleted (bin).
    The signature column is never fetched. */
 import React, { useEffect, useMemo, useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
-import { type StudentDeviceLogRow, deleteStudentDeviceLog, listStudentDeviceLog, schoolShort } from '@/lib/deviceLog';
+import {
+  type DeviceLogChanges,
+  type StudentDeviceLogRow,
+  SCHOOLS,
+  SIGNERS,
+  deleteStudentDeviceLog,
+  listStudentDeviceLog,
+  schoolShort,
+  updateStudentDeviceLog,
+} from '@/lib/deviceLog';
 import { type ExportOptions, exportDeviceHistory, filterForExport } from '@/lib/deviceExport';
 
 /* ── Icons ─────────────────────────────────────────────────────── */
@@ -39,6 +49,12 @@ const IconTrash = (
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </svg>
 );
+const IconEdit = (
+  <svg viewBox="0 0 24 24">
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+  </svg>
+);
 const IconDownload = (
   <svg viewBox="0 0 24 24">
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -61,6 +77,24 @@ const fmtDateTime = (iso: string) =>
   new Date(iso).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
+const pad = (n: number) => String(n).padStart(2, '0');
+/** ISO → value of an <input type="datetime-local"> (local time). */
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const SIGNER_LABEL: Record<string, string> = { Student: 'Studente', Parent: 'Genitore', 'IT Support': 'IT Support' };
+
+interface EditForm {
+  when: string;
+  operation: 'Check-in' | 'Check-out';
+  email: string;
+  school: string;
+  macbook: string;
+  ipad: string;
+  signedBy: string;
+}
 
 const OP_TAG: Record<string, React.CSSProperties> = {
   'Check-out': { ['--accent' as string]: '#2F6E5B', ['--accent-soft' as string]: '#E6F2EC' },
@@ -112,6 +146,9 @@ export default function DeviceHistoryClient() {
   const [school, setSchool] = useState('all');
   const [limit, setLimit] = useState(PAGE);
   const [toDelete, setToDelete] = useState<StudentDeviceLogRow | null>(null);
+  const [toEdit, setToEdit] = useState<StudentDeviceLogRow | null>(null);
+  const [edit, setEdit] = useState<EditForm | null>(null);
+  const [editTried, setEditTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const { showToast, toastNode } = useToast();
   const [exportOpen, setExportOpen] = useState(false);
@@ -142,12 +179,76 @@ export default function DeviceHistoryClient() {
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === 'Escape' && !busy) {
         setToDelete(null);
+        setToEdit(null);
         setExportOpen(false);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [busy]);
+
+  const openEdit = (r: StudentDeviceLogRow) => {
+    setToEdit(r);
+    setEditTried(false);
+    setEdit({
+      when: toLocalInput(r.created_at),
+      operation: r.operation,
+      email: r.student_email,
+      school: r.school ?? '',
+      macbook: r.macbook_id ?? '',
+      ipad: r.ipad_id ?? '',
+      signedBy: r.signed_by ?? '',
+    });
+  };
+
+  const editErrors = useMemo(() => {
+    const e: Partial<Record<keyof EditForm, string>> = {};
+    if (!edit) return e;
+    const d = new Date(edit.when);
+    if (!edit.when || isNaN(d.getTime())) e.when = 'Inserisci data e ora';
+    if (!EMAIL_RE.test(edit.email.trim())) e.email = 'Email non valida';
+    if (!edit.school) e.school = 'Scegli la scuola';
+    if (!edit.signedBy) e.signedBy = 'Scegli chi ha firmato';
+    return e;
+  }, [edit]);
+
+  const editChanged =
+    !!toEdit &&
+    !!edit &&
+    (edit.when !== toLocalInput(toEdit.created_at) ||
+      edit.operation !== toEdit.operation ||
+      edit.email.trim() !== toEdit.student_email ||
+      edit.school !== (toEdit.school ?? '') ||
+      edit.macbook.trim() !== (toEdit.macbook_id ?? '') ||
+      edit.ipad.trim() !== (toEdit.ipad_id ?? '') ||
+      edit.signedBy !== (toEdit.signed_by ?? ''));
+
+  const handleEdit = async () => {
+    if (!toEdit || !edit) return;
+    setEditTried(true);
+    if (Object.keys(editErrors).length) return;
+    if (new Date(edit.when).getTime() > Date.now() + 60000) return showToast('La data non può essere nel futuro', true);
+    setBusy(true);
+    try {
+      const changes: DeviceLogChanges = {
+        // Same minute as before → keep the original timestamp (seconds included).
+        created_at: edit.when === toLocalInput(toEdit.created_at) ? toEdit.created_at : new Date(edit.when).toISOString(),
+        operation: edit.operation,
+        student_email: edit.email.trim(),
+        school: edit.school || null,
+        macbook_id: edit.macbook.trim() || null,
+        ipad_id: edit.ipad.trim() || null,
+        signed_by: edit.signedBy || null,
+      };
+      const updated = await updateStudentDeviceLog(toEdit.id, changes);
+      setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)).sort((a, b) => b.created_at.localeCompare(a.created_at)));
+      showToast('Record modificato ✓');
+      setToEdit(null);
+    } catch (e) {
+      showToast((e as Error).message, true);
+    }
+    setBusy(false);
+  };
 
   const handleDelete = async () => {
     if (!toDelete) return;
@@ -420,6 +521,14 @@ export default function DeviceHistoryClient() {
                         <td className="col-actions">
                           <button
                             className="icon-btn"
+                            title="Modifica record"
+                            aria-label={`Modifica il record del ${fmtDateTime(r.created_at)} di ${r.student_email}`}
+                            onClick={() => openEdit(r)}
+                          >
+                            {IconEdit}
+                          </button>
+                          <button
+                            className="icon-btn"
                             title="Elimina record"
                             aria-label={`Elimina il record del ${fmtDateTime(r.created_at)} di ${r.student_email}`}
                             onClick={() => setToDelete(r)}
@@ -448,6 +557,102 @@ export default function DeviceHistoryClient() {
             <span>Via Adriano Olivetti 1 - 31056 Roncade (TV)</span>
           </footer>
         </div>
+
+        {/* ── Edit record ── */}
+        {toEdit && edit ? (
+          <div
+            className="b-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Modifica record"
+            onMouseDown={(ev) => {
+              if (ev.target === ev.currentTarget && !busy) setToEdit(null);
+            }}
+          >
+            <div className="b-modal" style={{ maxWidth: 520 }}>
+              <div className="b-modal-head">
+                <div className="mi">{IconEdit}</div>
+                <div>
+                  <h2>Modifica record</h2>
+                  <p>
+                    {OP_LABEL[toEdit.operation]} del {fmtDateTime(toEdit.created_at)}
+                  </p>
+                </div>
+              </div>
+              <div className="b-modal-body">
+                <div className="field">
+                  <label>Operazione</label>
+                  <div className="filters dh-opts">
+                    {(['Check-out', 'Check-in'] as const).map((o) => (
+                      <button key={o} type="button" className={'fchip' + (edit.operation === o ? ' active' : '')} onClick={() => setEdit({ ...edit, operation: o })}>
+                        {OP_LABEL[o]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className={'field' + (editTried && editErrors.when ? ' dh-bad' : '')}>
+                  <label htmlFor="ed-when">Data e ora</label>
+                  <input id="ed-when" type="datetime-local" value={edit.when} onChange={(e) => setEdit({ ...edit, when: e.target.value })} />
+                  {editTried && editErrors.when ? <small className="dh-err">{editErrors.when}</small> : null}
+                </div>
+                <div className={'field' + (editTried && editErrors.email ? ' dh-bad' : '')}>
+                  <label htmlFor="ed-email">Email studente</label>
+                  <input id="ed-email" type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} autoComplete="off" spellCheck={false} />
+                  {editTried && editErrors.email ? <small className="dh-err">{editErrors.email}</small> : null}
+                </div>
+                <div className="dh-row2">
+                  <div className="field">
+                    <label htmlFor="ed-mac">MacBook ID</label>
+                    <input id="ed-mac" type="text" value={edit.macbook} placeholder="—" onChange={(e) => setEdit({ ...edit, macbook: e.target.value })} autoComplete="off" />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="ed-ipad">iPad ID</label>
+                    <input id="ed-ipad" type="text" value={edit.ipad} placeholder="—" onChange={(e) => setEdit({ ...edit, ipad: e.target.value })} autoComplete="off" />
+                  </div>
+                </div>
+                <div className="dh-row2">
+                  <div className={'field' + (editTried && editErrors.school ? ' dh-bad' : '')}>
+                    <label htmlFor="ed-school">Scuola</label>
+                    <select id="ed-school" value={edit.school} onChange={(e) => setEdit({ ...edit, school: e.target.value })}>
+                      <option value="" disabled>
+                        Scegli…
+                      </option>
+                      {SCHOOLS.map((sc) => (
+                        <option key={sc} value={sc}>
+                          {schoolShort(sc)}
+                        </option>
+                      ))}
+                    </select>
+                    {editTried && editErrors.school ? <small className="dh-err">{editErrors.school}</small> : null}
+                  </div>
+                  <div className={'field' + (editTried && editErrors.signedBy ? ' dh-bad' : '')}>
+                    <label htmlFor="ed-signed">Firmato da</label>
+                    <select id="ed-signed" value={edit.signedBy} onChange={(e) => setEdit({ ...edit, signedBy: e.target.value })}>
+                      <option value="" disabled>
+                        Scegli…
+                      </option>
+                      {SIGNERS.map((sg) => (
+                        <option key={sg} value={sg}>
+                          {SIGNER_LABEL[sg] ?? sg}
+                        </option>
+                      ))}
+                    </select>
+                    {editTried && editErrors.signedBy ? <small className="dh-err">{editErrors.signedBy}</small> : null}
+                  </div>
+                </div>
+                <p className="dh-note">La firma salvata non si può modificare. Ogni modifica resta nel Registro attività.</p>
+              </div>
+              <div className="b-modal-foot">
+                <button className="btn-quiet" onClick={() => setToEdit(null)} disabled={busy}>
+                  Annulla
+                </button>
+                <button className="btn-primary" onClick={handleEdit} disabled={busy || !editChanged}>
+                  {busy ? 'Salvataggio…' : 'Salva modifiche'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* ── Delete confirmation ── */}
         {toDelete ? (
@@ -604,7 +809,11 @@ export default function DeviceHistoryClient() {
         .dh-page .dh-mono .dh-link { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
         .dh-page .dh-none, .dh-page .dh-muted { color: var(--b-muted); }
         .dh-page tbody td { white-space: nowrap; }
-        .dh-page td.col-actions { width: 44px; text-align: right; }
+        .dh-page td.col-actions { width: 84px; text-align: right; white-space: nowrap; }
+        .dh-page td.col-actions .icon-btn + .icon-btn { margin-left: 2px; }
+        .dh-page .dh-bad input, .dh-page .dh-bad select { border-color: #C0392B !important; box-shadow: 0 0 0 3px rgba(192, 57, 43, .1) !important; }
+        .dh-page .dh-err { display: block; margin-top: 5px; font-size: 12px; font-weight: 600; color: #A32D2D; }
+        .dh-page .dh-note { font-size: 12.5px; color: var(--b-muted); margin: .2rem 0 0; }
         .dh-page .dh-head-actions { display: flex; gap: 10px; flex-wrap: wrap; }
         .dh-page .dh-opts { margin-bottom: 0; }
         .dh-page .dh-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

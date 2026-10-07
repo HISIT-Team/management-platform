@@ -69,6 +69,23 @@ const OPTIONS: { value: 'Check-in' | 'Check-out'; icon: React.ReactNode; sub: (k
   },
 ];
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+/** Front + back of every MacBook / iPad. */
+const MIN_DEVICE_PHOTOS = 2;
+
+/** Red asterisk on required labels. */
+const Req = () => (
+  <span className="f-req" aria-hidden="true">
+    *
+  </span>
+);
+const Err = ({ msg }: { msg?: string }) =>
+  msg ? (
+    <small className="f-err" role="alert">
+      {msg}
+    </small>
+  ) : null;
+
 /* Two tiles: "Camera" opens the camera directly (capture="environment" —
    on Android a plain multi-file input only offers the gallery / Google
    Photos), "Gallery" picks existing photos, several at once. */
@@ -144,6 +161,9 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
   const [signer, setSigner] = useState<string | null>(null);
   const [banner, setBanner] = useState('');
   const [busy, setBusy] = useState(false);
+  const [hasSig, setHasSig] = useState(false);
+  // After the first submit attempt the missing fields are shown in red.
+  const [tried, setTried] = useState(false);
 
   const applyOpFromUrl = () => {
     const p = new URLSearchParams(window.location.search).get('op');
@@ -220,7 +240,9 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
     setDetails({});
     setSigner(null);
     setBanner('');
+    setTried(false);
     sigRef.current?.clear();
+    setHasSig(false);
     applyOpFromUrl();
     window.scrollTo(0, 0);
   }
@@ -249,14 +271,50 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
     }
   }
 
+  /* Every field is required (the second parent email only if typed must
+     be valid). Keys match the data-req attribute of each block, in page
+     order, so the first one can be scrolled into view. */
+  function validate(): [string, string][] {
+    const e: [string, string][] = [];
+    if (!op) e.push(['op', 'Select the operation type.']);
+    if (!firstName.trim()) e.push(['firstName', 'Enter the first name.']);
+    if (!lastName.trim()) e.push(['lastName', 'Enter the last name.']);
+    if (!email.trim()) e.push(['email', 'Enter the email.']);
+    else if (!EMAIL_RE.test(email.trim())) e.push(['email', 'This email is not valid.']);
+    if (!org) e.push(['org', config.kind === 'student' ? 'Select the school.' : 'Select the company.']);
+    if (config.hasParents) {
+      if (!email1.trim()) e.push(['parent1', 'Enter at least one parent email.']);
+      else if (!EMAIL_RE.test(email1.trim())) e.push(['parent1', 'This email is not valid.']);
+      if (email2.trim() && !EMAIL_RE.test(email2.trim())) e.push(['parent2', 'This email is not valid.']);
+    }
+    if (selected.length === 0) e.push(['devices', 'Select at least one device.']);
+    for (const dev of config.needsId) {
+      if (!selected.includes(dev)) continue;
+      const st = getState(dev);
+      if (!st.assetId.trim()) e.push([`id:${dev}`, `Enter the ${dev} asset ID.`]);
+      if (config.needsPhotos.includes(dev)) {
+        if (st.images.length < MIN_DEVICE_PHOTOS) e.push([`photos:${dev}`, `Add the front and back photos of the ${dev} (at least ${MIN_DEVICE_PHOTOS}).`]);
+        if (st.hasDamage && st.damagePhotos.length === 0) e.push([`damage:${dev}`, `Add at least one photo of the damage.`]);
+      }
+    }
+    if (!signer) e.push(['signer', 'Select who is signing.']);
+    if (!hasSig) e.push(['signature', 'The signature is required.']);
+    return e;
+  }
+
+  const errors = tried ? Object.fromEntries(validate().map(([k, m]) => [k, m])) : ({} as Record<string, string>);
+  const bad = (k: string) => (errors[k] ? ' f-bad' : '');
+
   async function handleSubmit() {
-    if (!op) return showToast('Please select operation type.', true);
-    if (!firstName.trim() || !lastName.trim()) return showToast(`Please enter ${config.kind} name.`, true);
-    if (!email.trim()) return showToast(config.kind === 'student' ? 'Please enter student email.' : 'Please enter work email.', true);
-    if (!org) return showToast(config.kind === 'student' ? 'Please select a school.' : 'Please select a company.', true);
-    if (selected.length === 0) return showToast('Please select at least one device.', true);
-    if (!signer) return showToast('Please select who is signing.', true);
-    if (!sigRef.current?.hasSig()) return showToast('Please add a signature.', true);
+    const missing = validate();
+    if (missing.length) {
+      setTried(true);
+      showToast(missing.length === 1 ? missing[0][1] : `Please complete all required fields (${missing.length} missing).`, true);
+      const first = document.querySelector(`[data-req="${CSS.escape(missing[0][0])}"]`);
+      first?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    if (!op || !signer || !sigRef.current) return;
 
     setBusy(true);
     try {
@@ -374,14 +432,14 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
 
         <div className="form-wrap">
           {!fixedOp && (
-            <div className="section">
+            <div className={'section' + bad('op')} data-req="op">
               <div className="section-title">
                 <svg viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="8" x2="12" y2="16" />
                   <line x1="8" y1="12" x2="16" y2="12" />
                 </svg>
-                Operation type
+                Operation type <Req />
               </div>
               <div className="big-selector">
                 {OPTIONS.map((o) => (
@@ -400,6 +458,7 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                   </div>
                 ))}
               </div>
+              <Err msg={errors.op} />
             </div>
           )}
 
@@ -414,22 +473,33 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                   {config.detailsTitle}
                 </div>
                 <div className="row2">
-                  <div className="field">
-                    <label>First name</label>
-                    <input type="text" placeholder={config.kind === 'student' ? 'e.g. Marco' : 'e.g. Laura'} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                  <div className={'field' + bad('firstName')} data-req="firstName">
+                    <label>
+                      First name <Req />
+                    </label>
+                    <input type="text" required placeholder={config.kind === 'student' ? 'e.g. Marco' : 'e.g. Laura'} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                    <Err msg={errors.firstName} />
                   </div>
-                  <div className="field">
-                    <label>Last name</label>
-                    <input type="text" placeholder={config.kind === 'student' ? 'e.g. Rossi' : 'e.g. Bianchi'} value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                  <div className={'field' + bad('lastName')} data-req="lastName">
+                    <label>
+                      Last name <Req />
+                    </label>
+                    <input type="text" required placeholder={config.kind === 'student' ? 'e.g. Rossi' : 'e.g. Bianchi'} value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                    <Err msg={errors.lastName} />
                   </div>
                 </div>
-                <div className="field">
-                  <label>{config.kind === 'student' ? 'Student email' : 'Work email'}</label>
-                  <input type="email" placeholder={config.kind === 'student' ? 'student@email.com' : 'employee@school.com'} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <div className={'field' + bad('email')} data-req="email">
+                  <label>
+                    {config.kind === 'student' ? 'Student email' : 'Work email'} <Req />
+                  </label>
+                  <input type="email" required placeholder={config.kind === 'student' ? 'student@email.com' : 'employee@school.com'} value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Err msg={errors.email} />
                 </div>
-                <div className="field">
-                  <label>{config.companyLabel}</label>
-                  <select value={org} onChange={(e) => setOrg(e.target.value)}>
+                <div className={'field' + bad('org')} data-req="org">
+                  <label>
+                    {config.companyLabel} <Req />
+                  </label>
+                  <select required value={org} onChange={(e) => setOrg(e.target.value)}>
                     <option value="" disabled>
                       {config.kind === 'student' ? 'Select school…' : 'Select company…'}
                     </option>
@@ -439,6 +509,7 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                       </option>
                     ))}
                   </select>
+                  <Err msg={errors.org} />
                 </div>
               </div>
 
@@ -452,27 +523,31 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                     </svg>
                     Parent emails
                   </div>
-                  <div className="field">
-                    <label>Parent email 1</label>
-                    <input type="email" placeholder="parent1@email.com" value={email1} onChange={(e) => setEmail1(e.target.value)} />
+                  <div className={'field' + bad('parent1')} data-req="parent1">
+                    <label>
+                      Parent email 1 <Req />
+                    </label>
+                    <input type="email" required placeholder="parent1@email.com" value={email1} onChange={(e) => setEmail1(e.target.value)} />
+                    <Err msg={errors.parent1} />
                   </div>
-                  <div className="field">
+                  <div className={'field' + bad('parent2')} data-req="parent2">
                     <label>
                       Parent email 2 <span style={{ fontWeight: 400 }}>(optional)</span>
                     </label>
                     <input type="email" placeholder="parent2@email.com" value={email2} onChange={(e) => setEmail2(e.target.value)} />
+                    <Err msg={errors.parent2} />
                   </div>
                 </div>
               )}
 
               {/* Devices */}
-              <div className="section">
+              <div className={'section' + bad('devices')} data-req="devices">
                 <div className="section-title">
                   <svg viewBox="0 0 24 24">
                     <rect x="5" y="2" width="14" height="20" rx="2" />
                     <line x1="12" y1="18" x2="12.01" y2="18" />
                   </svg>
-                  Devices
+                  Devices <Req />
                 </div>
                 <div className="device-grid">
                   {config.devices.map((d) => (
@@ -490,6 +565,7 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                     </div>
                   ))}
                 </div>
+                <Err msg={errors.devices} />
                 <div style={{ marginTop: selected.some((s) => config.needsId.includes(s)) ? '.625rem' : 0 }}>
                   {config.needsId
                     .filter((dev) => selected.includes(dev))
@@ -499,8 +575,10 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                       return (
                         <div className="device-detail" key={dev}>
                           <div className="device-detail-name">{dev}</div>
-                          <div className="device-field">
-                            <label>Asset ID</label>
+                          <div className={'device-field' + bad(`id:${dev}`)} data-req={`id:${dev}`}>
+                            <label>
+                              Asset ID <Req />
+                            </label>
                             <AssetIdField
                               value={st.assetId}
                               placeholder="Type the ID or scan the QR"
@@ -508,19 +586,28 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                               onError={(m) => showToast(m, true)}
                               onScanned={(id) => showToast(`${dev}: asset ID ${id} ✓`)}
                             />
+                            <Err msg={errors[`id:${dev}`]} />
                           </div>
                           {photos && (
                             <>
-                              <span className="subsection-label">Front &amp; Back Images — {dev}</span>
-                              <PhotoGrid photos={st.images} onAdd={(f) => addPhotos(dev, 'images', f)} onDelete={(i) => setState(dev, { images: st.images.filter((_, x) => x !== i) })} />
+                              <div className={'f-block' + bad(`photos:${dev}`)} data-req={`photos:${dev}`}>
+                                <span className="subsection-label">
+                                  Front &amp; Back Images — {dev} <Req />
+                                </span>
+                                <PhotoGrid photos={st.images} onAdd={(f) => addPhotos(dev, 'images', f)} onDelete={(i) => setState(dev, { images: st.images.filter((_, x) => x !== i) })} />
+                                <Err msg={errors[`photos:${dev}`]} />
+                              </div>
                               <label className={'damage-toggle' + (st.hasDamage ? ' active' : '')}>
                                 <input type="checkbox" checked={st.hasDamage} onChange={(e) => setState(dev, { hasDamage: e.target.checked })} />
                                 <span>Any damage?</span>
                               </label>
                               {st.hasDamage && (
-                                <div className="damage-section">
-                                  <span className="damage-label">Damage photos — {dev}</span>
+                                <div className={'damage-section' + bad(`damage:${dev}`)} data-req={`damage:${dev}`}>
+                                  <span className="damage-label">
+                                    Damage photos — {dev} <Req />
+                                  </span>
                                   <PhotoGrid photos={st.damagePhotos} onAdd={(f) => addPhotos(dev, 'damagePhotos', f)} onDelete={(i) => setState(dev, { damagePhotos: st.damagePhotos.filter((_, x) => x !== i) })} />
+                                  <Err msg={errors[`damage:${dev}`]} />
                                 </div>
                               )}
                             </>
@@ -540,8 +627,10 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                   </svg>
                   Signature
                 </div>
-                <div className="field" style={{ marginBottom: '.875rem' }}>
-                  <label style={{ marginBottom: 8 }}>Signed by</label>
+                <div className={'field' + bad('signer')} data-req="signer" style={{ marginBottom: '.875rem' }}>
+                  <label style={{ marginBottom: 8 }}>
+                    Signed by <Req />
+                  </label>
                   <div className={'signer-grid cols-' + config.signerCols}>
                     {config.signers.map((s) => (
                       <div
@@ -558,9 +647,15 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                       </div>
                     ))}
                   </div>
+                  <Err msg={errors.signer} />
                 </div>
-                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--f-gray-600)', display: 'block', marginBottom: 6 }}>Sign below</label>
-                <SignaturePad ref={sigRef} width={640} height={150} />
+                <div className={'f-block' + bad('signature')} data-req="signature">
+                  <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--f-gray-600)', display: 'block', marginBottom: 6 }}>
+                    Sign below <Req />
+                  </label>
+                  <SignaturePad ref={sigRef} width={640} height={150} onChange={setHasSig} />
+                  <Err msg={errors.signature} />
+                </div>
                 <div className="sig-actions">
                   <button className="btn-ghost" type="button" onClick={() => sigRef.current?.clear()}>
                     <svg viewBox="0 0 24 24">
@@ -572,6 +667,12 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                 </div>
               </div>
 
+              {tried && Object.keys(errors).length ? (
+                <div className="f-missing" role="alert">
+                  {Object.keys(errors).length === 1 ? '1 required field is missing.' : `${Object.keys(errors).length} required fields are missing.`} The form can&apos;t be sent until
+                  everything is filled in.
+                </div>
+              ) : null}
               <button className="submit-btn" onClick={handleSubmit} disabled={busy}>
                 <svg viewBox="0 0 24 24">
                   <line x1="22" y1="2" x2="11" y2="13" />

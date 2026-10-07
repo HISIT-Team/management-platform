@@ -55,6 +55,16 @@ function describe(e: AuditEntry): string {
       return `${d.operation === 'Check-out' ? 'Consegna' : 'Restituzione'} del ${d.recorded_at ? fmt(String(d.recorded_at)) : '—'}${
         d.macbook_id ? ' · MacBook ' + d.macbook_id : ''
       }${d.ipad_id ? ' · iPad ' + d.ipad_id : ''}`;
+    case 'device_record_updated': {
+      const b = (d.before || {}) as Record<string, unknown>;
+      const a = (d.after || {}) as Record<string, unknown>;
+      const LBL: Record<string, string> = { created_at: 'Data', operation: 'Operazione', student_email: 'Email', school: 'Scuola', macbook_id: 'MacBook', ipad_id: 'iPad', signed_by: 'Firmato da' };
+      const val = (k: string, v: unknown) =>
+        v == null || v === '' ? '—' : k === 'created_at' ? fmt(String(v)) : k === 'operation' ? (v === 'Check-out' ? 'Consegna' : 'Restituzione') : String(v);
+      return Object.keys(a)
+        .map((k) => `${LBL[k] ?? k}: ${val(k, b[k])} → ${val(k, a[k])}`)
+        .join(' · ');
+    }
     case 'mfa_policy_changed':
       return `MFA ${d.to ? 'obbligatoria' : 'non obbligatoria'} per il ruolo ${role(e.target_label)}`;
     case 'mfa_reset':

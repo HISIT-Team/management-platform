@@ -13,14 +13,25 @@ interface SignaturePadProps {
   width?: number;
   height?: number;
   short?: boolean;
+  /** Called when the pad goes from empty to signed and back (clear). */
+  onChange?: (hasSig: boolean) => void;
 }
 
+/* A signature counts only after a real stroke (total ink length in canvas
+   pixels): a tap or an accidental touch is not a signature. */
+const MIN_INK = 80;
+
 const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function SignaturePad(
-  { width = 640, height = 150, short = false },
+  { width = 640, height = 150, short = false, onChange },
   ref,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hasSigRef = useRef(false);
+  const inkRef = useRef(0);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useImperativeHandle(ref, () => ({
     hasSig: () => hasSigRef.current,
@@ -30,7 +41,11 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function 
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       ctx?.clearRect(0, 0, canvas.width, canvas.height);
-      hasSigRef.current = false;
+      inkRef.current = 0;
+      if (hasSigRef.current) {
+        hasSigRef.current = false;
+        onChangeRef.current?.(false);
+      }
     },
   }));
 
@@ -60,6 +75,14 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function 
       return { x: (m.clientX - r.left) * sx, y: (m.clientY - r.top) * sy };
     };
 
+    const ink = (x: number, y: number) => {
+      inkRef.current += Math.hypot(x - lx, y - ly);
+      if (!hasSigRef.current && inkRef.current >= MIN_INK) {
+        hasSigRef.current = true;
+        onChangeRef.current?.(true);
+      }
+    };
+
     const down = (e: MouseEvent) => {
       drawing = true;
       const p = pt(e);
@@ -73,9 +96,9 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function 
       ctx.moveTo(lx, ly);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      ink(p.x, p.y);
       lx = p.x;
       ly = p.y;
-      hasSigRef.current = true;
     };
     const up = () => {
       drawing = false;
@@ -95,9 +118,9 @@ const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(function 
       ctx.moveTo(lx, ly);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
+      ink(p.x, p.y);
       lx = p.x;
       ly = p.y;
-      hasSigRef.current = true;
     };
 
     canvas.addEventListener('mousedown', down);
