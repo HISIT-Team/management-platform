@@ -123,7 +123,7 @@ export default function Dashboard() {
   // What the dashboard shows follows the company and the role's permissions.
   const isIt = onVe && allows(access, 'it.history', ['it', 'admin']); // device KPIs + movements
   const canStudentForm = onVe && allows(access, 'it.checkin_student', ['it', 'admin']);
-  const canBudget = allows(access, BUDGET_PERM[co] ?? 'it.budget', co === 'vicenza' ? ['office.hvi', 'admin'] : co === 'rosa' ? ['office.hro', 'admin'] : ['admin']);
+  const canBudget = allows(access, BUDGET_PERM[co] ?? 'it.budget', ['admin']); // Owner / Super Admin / Admin only (0022)
   const canTasks = onVe && allows(access, 'it.tasks', ['admin']);
   const canOnboarding = onVe && allows(access, 'hr.onboarding', ['hr', 'admin']);
   const canOffboarding = onVe && allows(access, 'hr.offboarding', ['hr', 'admin']);

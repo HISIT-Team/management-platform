@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- Three companies (H-IS Venezia, Vicenza, Rosà), new roles, budget
 -- lines in the database. (Purchases was removed: see 0019.)
+-- NOTE: 0022 makes budget and tasks Owner / Super Admin / Admin only:
+--       if you re-run this file, re-run 0022 afterwards.
 -- Run once in the Supabase SQL Editor, AFTER 0017. Rieseguibile.
 --
 -- 1. New roles: teachers.hvi, office.hvi (H-IS Vicenza),

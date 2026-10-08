@@ -103,9 +103,9 @@ export const NAV: NavGroup[] = [
       },
       { label: 'Student Office', href: '/student-office', icon: 'file', roles: ['office', 'admin'], perm: 'office', company: 'venezia' },
       // H-IS Vicenza
-      { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet', roles: ['office.hvi', 'admin'], perm: 'vi.budget', company: 'vicenza' },
+      { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet', roles: ['admin'], perm: 'vi.budget', company: 'vicenza' },
       // H-IS Rosà
-      { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet', roles: ['office.hro', 'admin'], perm: 'ro.budget', company: 'rosa' },
+      { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet', roles: ['admin'], perm: 'ro.budget', company: 'rosa' },
     ],
   },
   {
@@ -129,6 +129,11 @@ export interface Access {
 /** Owner and Super Admin see everything. */
 export const isTop = (roles: string[]) => roles.includes('owner') || roles.includes('superadmin');
 
+/** Budget Management (all schools) and Task Manager: only Owner, Super Admin
+    and Admin, whatever "Permessi ruoli" says (migration 0022, enforced in
+    the database too). */
+export const ADMIN_ONLY_PERMS = ['it.budget', 'vi.budget', 'ro.budget', 'it.tasks'];
+
 /** Role-list rule (before migration 0017, and for Owner/Super-Admin-only entries). */
 export function canSee(mine: string[], allowed: string[]): boolean {
   if (isTop(mine)) return true;
@@ -140,6 +145,7 @@ export function canSee(mine: string[], allowed: string[]): boolean {
 /** Can `a` open something guarded by `perm` (falling back to `roles`)? */
 export function allows(a: Access, perm: string | undefined, roles: string[]): boolean {
   if (isTop(a.roles)) return true;
+  if (perm && ADMIN_ONLY_PERMS.includes(perm)) return a.roles.includes('admin');
   if (perm && a.perms) return a.perms.includes(perm);
   return canSee(a.roles, roles);
 }

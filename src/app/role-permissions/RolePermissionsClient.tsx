@@ -9,6 +9,7 @@ import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { CONFIGURABLE_ROLES, PERMISSIONS, listRolePermissions, setRolePermission } from '@/lib/permissions';
+import { ADMIN_ONLY_PERMS } from '@/lib/nav';
 import { roleMeta } from '@/lib/users';
 
 const IconSliders = (
@@ -72,7 +73,9 @@ export default function RolePermissionsClient() {
 
   // A whole section for a role at once.
   async function setSection(role: string, group: string, value: boolean) {
-    const keys = PERMISSIONS.filter((p) => p.group === group).map((p) => p.key).filter((k) => has(role, k) !== value);
+    const keys = PERMISSIONS.filter((p) => p.group === group && !ADMIN_ONLY_PERMS.includes(p.key))
+      .map((p) => p.key)
+      .filter((k) => has(role, k) !== value);
     for (const k of keys) await toggle(role, k);
   }
 
@@ -132,7 +135,9 @@ export default function RolePermissionsClient() {
                             <td key={r} />
                           ))}
                           {CONFIGURABLE_ROLES.map((r) => {
-                            const all = g.items.every((p) => has(r, p.key));
+                            const editable = g.items.filter((p) => !ADMIN_ONLY_PERMS.includes(p.key));
+                            const all = editable.every((p) => has(r, p.key));
+                            if (!editable.length) return <td key={r} />;
                             return (
                               <td key={r} className="rp-cell">
                                 <button type="button" className="rp-all" onClick={() => setSection(r, g.name, !all)} disabled={!!busy}>
@@ -147,6 +152,7 @@ export default function RolePermissionsClient() {
                             <td className={'rp-perm' + (p.sub ? ' sub' : '')}>
                               <b>{p.label}</b>
                               <small>{p.desc}</small>
+                              {ADMIN_ONLY_PERMS.includes(p.key) ? <small className="rp-lock">Solo Owner, Super Admin e Admin</small> : null}
                             </td>
                             {LOCKED_ROLES.map((r) => (
                               <td key={r} className="rp-cell">
@@ -156,6 +162,20 @@ export default function RolePermissionsClient() {
                               </td>
                             ))}
                             {CONFIGURABLE_ROLES.map((r) => {
+                              if (ADMIN_ONLY_PERMS.includes(p.key)) {
+                                const admin = r === 'admin';
+                                return (
+                                  <td key={r} className="rp-cell">
+                                    <span
+                                      className={'rp-check locked' + (admin ? ' on' : ' off')}
+                                      title={admin ? 'Sempre consentito' : 'Riservato a Owner, Super Admin e Admin'}
+                                      aria-label={admin ? 'Sempre consentito' : 'Non consentito'}
+                                    >
+                                      {admin ? '✓' : '—'}
+                                    </span>
+                                  </td>
+                                );
+                              }
                               const on = has(r, p.key);
                               return (
                                 <td key={r} className="rp-cell">
@@ -186,7 +206,8 @@ export default function RolePermissionsClient() {
           <p className="rp-note">
             La &laquo;Sezione&raquo; mostra la pagina e la voce nel menu; le righe sotto aprono le singole funzioni. Le modifiche
             valgono dal prossimo caricamento di pagina degli utenti e sono applicate anche nel database (storico, budget, task e form).
-            Gestione Utenti, Registro attività, Sicurezza e questa pagina restano solo per Owner e Super Admin. Ogni modifica finisce
+            Gestione Utenti, Registro attività, Sicurezza e questa pagina restano solo per Owner e Super Admin; Budget Management
+            (tutte e tre le scuole) e Task Manager solo per Owner, Super Admin e Admin. Ogni modifica finisce
             nel Registro attività.
           </p>
         </div>
@@ -207,6 +228,8 @@ export default function RolePermissionsClient() {
         .rp-page .rp-check.on { background: var(--brand); border-color: var(--brand); }
         .rp-page .rp-check.locked { background: #E9E2E3; border-color: #E9E2E3; color: #8C8086; cursor: default; }
         .rp-page .rp-check:disabled { opacity: .5; }
+        .rp-page .rp-check.locked.off { background: #fff; border-style: dashed; color: #B8ADB0; }
+        .rp-page .rp-perm small.rp-lock { color: var(--brand); font-weight: 700; margin-top: 2px; }
         .rp-page .rp-check:focus-visible, .rp-page .rp-all:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
         .rp-page .rp-all { border: none; background: none; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--brand); cursor: pointer; text-transform: none; letter-spacing: 0; }
         .rp-page .rp-note { font-size: 13px; color: var(--b-muted); line-height: 1.55; margin-top: 1rem; max-width: 900px; }

@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════════════
 -- Owner role + permissions per role ("cosa vede ogni ruolo").
 -- Run once in the Supabase SQL Editor, AFTER 0016. Rieseguibile.
+-- NOTE: 0022 makes budget and tasks Owner / Super Admin / Admin only:
+--       if you re-run this file, re-run 0022 afterwards.
 -- NOTE: 0018 extends roles, permissions and the budget policies: if you
 -- re-run this file, re-run 0018 afterwards.
 --

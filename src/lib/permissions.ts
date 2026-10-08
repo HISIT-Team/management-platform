@@ -21,7 +21,7 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'it.checkin_employee', label: 'Consegne e restituzioni dipendenti', desc: 'Form check-out / check-in dipendenti', group: 'IT', sub: true },
   { key: 'it.history', label: 'Storico assegnazioni', desc: 'Lettura, ricerca, export ed eliminazione dei record', group: 'IT', sub: true },
   { key: 'it.registries', label: 'Registri risposte', desc: 'Registri check-in / check-out', group: 'IT', sub: true },
-  { key: 'it.budget', label: 'Budget IT', desc: 'Commesse e spese delle scuole', group: 'IT', sub: true },
+  { key: 'it.budget', label: 'Budget IT', desc: 'Commesse e spese di H-IS Venezia', group: 'IT', sub: true },
   { key: 'it.tasks', label: 'Task Manager', desc: 'Task del team IT', group: 'IT', sub: true },
   { key: 'hr', label: 'Sezione HR', desc: 'Pagina HR e voce nel menu', group: 'HR' },
   { key: 'hr.onboarding', label: 'Onboarding', desc: 'Richiesta setup nuovo dipendente', group: 'HR', sub: true },
