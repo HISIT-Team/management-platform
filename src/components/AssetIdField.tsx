@@ -4,7 +4,7 @@
    (https://assetmanager.h-farm.com/hardware/20169): only the number at the
    end is kept. A QR with just the number is accepted too. */
 import React, { useEffect, useRef, useState } from 'react';
-import jsQR from 'jsqr';
+import { type QrCamera, cameraErrorMessage, startQrCamera } from '@/lib/qrCamera';
 
 /** "…/hardware/20169" (Asset Manager URL) or "20169" → "20169"; anything else → null. */
 export function assetIdFromQr(raw: string): string | null {
@@ -30,64 +30,70 @@ interface Props {
 
 export default function AssetIdField({ value, onChange, onError, onScanned, placeholder = 'Asset ID' }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const timerRef = useRef<number | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const camRef = useRef<QrCamera | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [torch, setTorch] = useState<boolean | null>(null); // null = no flashlight
+  // Latest callbacks, so the camera effect doesn't restart on every render.
+  const cb = useRef({ onChange, onError, onScanned });
+  useEffect(() => {
+    cb.current = { onChange, onError, onScanned };
+  }, [onChange, onError, onScanned]);
 
   const stop = () => {
-    if (timerRef.current) window.clearInterval(timerRef.current);
-    timerRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    if (videoRef.current) videoRef.current.srcObject = null;
+    camRef.current?.stop();
+    camRef.current = null;
     setScanning(false);
+    setTorch(null);
   };
 
-  const scanFrame = () => {
-    const video = videoRef.current;
-    if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    const c = (canvasRef.current ||= document.createElement('canvas'));
-    c.width = video.videoWidth;
-    c.height = video.videoHeight;
-    const cx = c.getContext('2d', { willReadFrequently: true });
-    if (!cx) return;
-    cx.drawImage(video, 0, 0);
-    const img = cx.getImageData(0, 0, c.width, c.height);
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
-    if (!code) return;
-    const id = assetIdFromQr(code.data);
-    stop();
-    if (!id) {
-      onError('QR not recognised: it is not an Asset Manager code. / QR non riconosciuto.');
-      return;
-    }
-    onChange(id);
-    try {
-      navigator.vibrate?.(60);
-    } catch {
-      /* ignore */
-    }
-    onScanned?.(id);
-  };
+  // The camera starts once the scanner box is visible (a hidden <video>
+  // gets no frames on some phones).
+  useEffect(() => {
+    if (!scanning || !videoRef.current) return;
+    let cancelled = false;
+    startQrCamera(
+      videoRef.current,
+      (raw) => {
+        camRef.current = null;
+        setScanning(false);
+        setTorch(null);
+        const id = assetIdFromQr(raw);
+        if (!id) {
+          cb.current.onError(`QR not recognised: "${raw.slice(0, 60)}" is not an Asset Manager code. / QR non riconosciuto.`);
+          return;
+        }
+        cb.current.onChange(id);
+        try {
+          navigator.vibrate?.(60);
+        } catch {
+          /* ignore */
+        }
+        cb.current.onScanned?.(id);
+      },
+      { zoom: 2 },
+    )
+      .then((cam) => {
+        if (cancelled) return cam.stop();
+        camRef.current = cam;
+        if (cam.setTorch) setTorch(false);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setScanning(false);
+        cb.current.onError(cameraErrorMessage(e));
+      });
+    return () => {
+      cancelled = true;
+      camRef.current?.stop();
+      camRef.current = null;
+    };
+  }, [scanning]);
 
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      streamRef.current = stream;
-      setScanning(true);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      timerRef.current = window.setInterval(scanFrame, 250);
-    } catch {
-      stop();
-      onError('Camera not accessible. / Fotocamera non disponibile.');
-    }
+  const toggleTorch = async () => {
+    if (!camRef.current?.setTorch || torch === null) return;
+    await camRef.current.setTorch(!torch);
+    setTorch(!torch);
   };
-
-  useEffect(() => () => stop(), []);
 
   return (
     <>
@@ -101,7 +107,7 @@ export default function AssetIdField({ value, onChange, onError, onScanned, plac
         <button
           type="button"
           className={'asset-scan-btn' + (scanning ? ' scanning' : '')}
-          onClick={() => (scanning ? stop() : start())}
+          onClick={() => (scanning ? stop() : setScanning(true))}
           aria-label={scanning ? 'Close scanner' : 'Scan the asset QR code'}
           title={scanning ? 'Close scanner' : 'Scan the asset QR code'}
         >
@@ -127,7 +133,14 @@ export default function AssetIdField({ value, onChange, onError, onScanned, plac
         <div className="qr-overlay">
           <div className="qr-frame" />
         </div>
-        <div className="qr-hint">Point the camera at the QR sticker on the device</div>
+        <div className="qr-hint">Hold the sticker inside the square, about 10–15 cm away</div>
+        {torch !== null ? (
+          <button type="button" className={'qr-torch' + (torch ? ' on' : '')} onClick={toggleTorch} aria-label={torch ? 'Turn off the flashlight' : 'Turn on the flashlight'}>
+            <svg viewBox="0 0 24 24">
+              <path d="M9 2h6l-1 7h4l-8 13 2-9H7z" />
+            </svg>
+          </button>
+        ) : null}
       </div>
     </>
   );

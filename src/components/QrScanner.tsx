@@ -1,8 +1,8 @@
 'use client';
-/* QR scanner section (camera + jsQR loop) used by the student device form.
+/* QR scanner section (shared camera, src/lib/qrCamera.ts) used by the student device form.
    Calls onScan(rawText) for every decoded code; the parent decides what to do. */
 import React, { useEffect, useRef, useState } from 'react';
-import jsQR from 'jsqr';
+import { type QrCamera, cameraErrorMessage, startQrCamera } from '@/lib/qrCamera';
 
 interface QrScannerProps {
   onScan: (raw: string) => boolean; // return true if handled/valid → scanner closes
@@ -14,58 +14,43 @@ interface QrScannerProps {
 
 export default function QrScanner({ onScan, onError, hint = "Point camera at the QR code", title = 'Scan QR (optional)', banner }: QrScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const camRef = useRef<QrCamera | null>(null);
   const [scanning, setScanning] = useState(false);
+  const cb = useRef({ onScan, onError });
+  useEffect(() => {
+    cb.current = { onScan, onError };
+  }, [onScan, onError]);
 
   const stop = () => {
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-    intervalRef.current = null;
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) videoRef.current.srcObject = null;
+    camRef.current?.stop();
+    camRef.current = null;
     setScanning(false);
   };
 
-  const scanFrame = () => {
-    const video = videoRef.current;
-    if (!video || video.readyState !== video.HAVE_ENOUGH_DATA) return;
-    const c = document.createElement('canvas');
-    c.width = video.videoWidth;
-    c.height = video.videoHeight;
-    const cx = c.getContext('2d');
-    if (!cx) return;
-    cx.drawImage(video, 0, 0);
-    const img = cx.getImageData(0, 0, c.width, c.height);
-    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-    if (code) {
-      const handled = onScan(code.data);
-      if (handled) stop();
-      else {
-        onError('QR not recognised.');
-        stop();
-      }
-    }
-  };
-
-  const start = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-      setScanning(true);
-      intervalRef.current = window.setInterval(scanFrame, 250);
-    } catch {
-      onError('Camera not accessible.');
-    }
-  };
-
-  useEffect(() => () => stop(), []);
+  // Started once the scanner box is visible (hidden videos get no frames on some phones).
+  useEffect(() => {
+    if (!scanning || !videoRef.current) return;
+    let cancelled = false;
+    startQrCamera(videoRef.current, (raw) => {
+      camRef.current = null;
+      setScanning(false);
+      if (!cb.current.onScan(raw)) cb.current.onError('QR not recognised.');
+    })
+      .then((cam) => {
+        if (cancelled) return cam.stop();
+        camRef.current = cam;
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setScanning(false);
+        cb.current.onError(cameraErrorMessage(e));
+      });
+    return () => {
+      cancelled = true;
+      camRef.current?.stop();
+      camRef.current = null;
+    };
+  }, [scanning]);
 
   return (
     <div className="section">
@@ -81,7 +66,7 @@ export default function QrScanner({ onScan, onError, hint = "Point camera at the
         </svg>
         {title}
       </div>
-      <button className={'qr-btn' + (scanning ? ' scanning' : '')} type="button" onClick={() => (scanning ? stop() : start())}>
+      <button className={'qr-btn' + (scanning ? ' scanning' : '')} type="button" onClick={() => (scanning ? stop() : setScanning(true))}>
         {scanning ? (
           <>
             <svg viewBox="0 0 24 24">
