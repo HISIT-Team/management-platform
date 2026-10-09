@@ -1,19 +1,20 @@
 'use client';
 /* Asset ID field of the device forms: type the ID, or scan the QR sticker
    on the back of the device. The sticker holds the Asset Manager URL
-   (https://assetmanager.h-farm.com/hardware/20169): only the number at the
+   (https://assetmanager.h-farm.com/hardware/25142/view): only the number at the
    end is kept. A QR with just the number is accepted too. */
 import React, { useEffect, useRef, useState } from 'react';
 import { type QrCamera, cameraErrorMessage, startQrCamera } from '@/lib/qrCamera';
 
-/** "…/hardware/20169" (Asset Manager URL) or "20169" → "20169"; anything else → null. */
+/** "…/hardware/20169", "…/hardware/20169/view" (Asset Manager URL) or "20169" → "20169"; anything else → null. */
 export function assetIdFromQr(raw: string): string | null {
   const text = raw.trim();
   if (/^\d{1,10}$/.test(text)) return text;
   try {
     const u = new URL(text);
     if (!/(^|\.)h-farm\.com$/i.test(u.hostname)) return null;
-    const m = /\/hardware\/(\d{1,10})\/?$/.exec(u.pathname);
+    // …/hardware/25142, …/hardware/25142/, …/hardware/25142/view (or any page after the number)
+    const m = /\/hardware\/(\d{1,10})(?:\/[^/]*)?\/?$/.exec(u.pathname);
     return m ? m[1] : null;
   } catch {
     return null;
