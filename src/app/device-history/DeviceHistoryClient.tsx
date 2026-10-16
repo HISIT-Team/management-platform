@@ -373,7 +373,7 @@ export default function DeviceHistoryClient() {
             <div className="b-head-left">
               <div className="logo">{IconHistory}</div>
               <div>
-                <p className="b-eyebrow">Device Management · Studenti</p>
+                <p className="b-eyebrow">IT · Dispositivi studenti</p>
                 <h1>
                   Storico <em>assegnazioni</em>
                 </h1>

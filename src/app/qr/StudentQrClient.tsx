@@ -121,7 +121,7 @@ export default function StudentQrClient() {
         </div>
         <div>
           <h1>Student QR code</h1>
-          <p>Scan it in IT → Student Check-in / Check-out</p>
+          <p>Scan it in IT → Student devices</p>
         </div>
       </div>
 

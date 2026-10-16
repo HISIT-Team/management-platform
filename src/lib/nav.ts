@@ -70,8 +70,8 @@ export const NAV: NavGroup[] = [
         company: 'venezia',
         match: ['/qr'],
         children: [
-          { label: 'Consegne studenti', href: '/student-checkinout-hub', icon: 'box', roles: ['it', 'admin'], perm: 'it.checkin_student', match: ['/modulo-student'] },
-          { label: 'Consegne dipendenti', href: '/employee-checkinout-hub', icon: 'briefcase', roles: ['it', 'admin'], perm: 'it.checkin_employee', match: ['/modulo-employee'] },
+          { label: 'Dispositivi studenti', href: '/student-checkinout-hub', icon: 'box', roles: ['it', 'admin'], perm: 'it.checkin_student', match: ['/modulo-student'] },
+          { label: 'Dispositivi dipendenti', href: '/employee-checkinout-hub', icon: 'briefcase', roles: ['it', 'admin'], perm: 'it.checkin_employee', match: ['/modulo-employee'] },
           { label: 'Storico assegnazioni', href: '/device-history', icon: 'history', roles: ['it', 'admin'], perm: 'it.history' },
           { label: 'Registri risposte', href: '/it-registries-hub', icon: 'registry', roles: ['it', 'admin'], perm: 'it.registries' },
           { label: 'Budget IT', href: '/budget-management/venezia', icon: 'wallet', roles: ['admin'], perm: 'it.budget' },

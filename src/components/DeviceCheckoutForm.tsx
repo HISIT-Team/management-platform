@@ -55,7 +55,7 @@ const OPTIONS: { value: 'Check-in' | 'Check-out'; icon: React.ReactNode; sub: (k
         <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
       </svg>
     ),
-    sub: (k) => `Device delivered to ${k}`,
+    sub: (k) => `The ${k} receives the device from IT`,
   },
   {
     value: 'Check-in',
@@ -65,9 +65,11 @@ const OPTIONS: { value: 'Check-in' | 'Check-out'; icon: React.ReactNode; sub: (k
         <path d="M3.51 15a9 9 0 1 0 .49-3.51" />
       </svg>
     ),
-    sub: (k) => `Device returned by ${k}`,
+    sub: (k) => `The ${k} gives the device back to IT`,
   },
 ];
+
+const OP_TITLE: Record<'Check-in' | 'Check-out', string> = { 'Check-out': 'Check-out · Delivery', 'Check-in': 'Check-in · Return' };
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 /** Front + back of every MacBook / iPad. */
@@ -179,6 +181,19 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
   useEffect(() => {
     applyOpFromUrl();
   }, []);
+
+  /* Wrong operation opened from the hub: switch without losing what was typed. */
+  function switchOp(next: 'Check-in' | 'Check-out') {
+    setOp(next);
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('op', next === 'Check-in' ? 'checkin' : 'checkout');
+      window.history.replaceState(null, '', u.toString());
+    } catch {
+      /* ignore */
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   function getState(dev: string): DeviceState {
     return details[dev] || { assetId: '', images: [], hasDamage: false, damagePhotos: [] };
@@ -430,13 +445,26 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
           {config.backLabel}
         </Link>
 
-        <div className="page-header">
+        <div className={'page-header' + (op === 'Check-out' ? ' op-out' : op === 'Check-in' ? ' op-in' : '')}>
           <div className="logo">{config.headerIcon}</div>
           <div>
-            <h1>{config.headerTitle}</h1>
-            <p>{op ? `${op} — ${OPTIONS.find((o) => o.value === op)?.sub(config.kind)}` : 'Select operation type'}</p>
+            <span className="op-eyebrow">{config.headerTitle}</span>
+            <h1>{op ? OP_TITLE[op] : 'Delivery or return?'}</h1>
+            <p>{op ? OPTIONS.find((o) => o.value === op)?.sub(config.kind) : 'Choose the operation below'}</p>
           </div>
         </div>
+
+        {op && fixedOp ? (
+          <div className={'op-banner ' + (op === 'Check-out' ? 'out' : 'in')} role="status">
+            <span>
+              You are recording a <b>{op === 'Check-out' ? 'DELIVERY' : 'RETURN'}</b> ({op.toLowerCase()}): the {config.kind}{' '}
+              {op === 'Check-out' ? 'receives the device from IT' : 'gives the device back to IT'}.
+            </span>
+            <button type="button" onClick={() => switchOp(op === 'Check-out' ? 'Check-in' : 'Check-out')}>
+              Switch to {op === 'Check-out' ? 'return (check-in)' : 'delivery (check-out)'}
+            </button>
+          </div>
+        ) : null}
 
         <div className="form-wrap">
           {!fixedOp && (
@@ -461,7 +489,7 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                     onKeyDown={onActivate(() => setOp(o.value))}
                   >
                     {o.icon}
-                    <span className="opt-label">{o.value}</span>
+                    <span className="opt-label">{OP_TITLE[o.value]}</span>
                     <span className="opt-sub">{o.sub(config.kind)}</span>
                   </div>
                 ))}

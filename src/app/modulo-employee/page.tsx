@@ -2,15 +2,15 @@ import type { Metadata } from 'next';
 import DeviceCheckoutForm, { type CheckoutConfig } from '@/components/DeviceCheckoutForm';
 import { DEV_ICONS, SIGNER_ICONS, DETAIL_ICONS } from '@/lib/deviceIcons';
 
-export const metadata: Metadata = { title: { absolute: 'Employee Check-in / Check-out — Device Management' } };
+export const metadata: Metadata = { title: { absolute: 'Employee devices — HIS IT' } };
 
 const config: CheckoutConfig = {
   kind: 'employee',
   roles: ['it', 'admin'],
   backHref: '/employee-checkinout-hub',
-  backLabel: 'Back to Employee Check-in / Check-out',
+  backLabel: 'Back to Employee devices',
   headerIcon: DETAIL_ICONS.briefcase,
-  headerTitle: 'Employee Device Check-in / Check-out',
+  headerTitle: 'Employee devices',
   detailsIcon: DETAIL_ICONS.briefcase,
   detailsTitle: 'Employee details',
   companyLabel: 'Company',

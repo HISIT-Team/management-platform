@@ -318,3 +318,14 @@
 .form-page .qr-torch.on { background: #F5C542; color: #2A1F22; }
 .form-page .qr-torch svg { width: 20px; height: 20px; fill: currentColor; stroke: none; }
 .form-page .asset-scanner .qr-frame { width: 62%; }
+
+/* ── Operation (check-out = delivery, check-in = return) ───────── */
+.form-page .page-header .op-eyebrow { display: block; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--f-gray-600); margin-bottom: 2px; }
+.form-page .page-header.op-out .logo { background: linear-gradient(135deg, #2F6E5B, #1F5A48); box-shadow: 0 8px 16px -6px rgba(31,90,72,.5); }
+.form-page .page-header.op-out h1 { color: #1F5A48; }
+.form-page .page-header.op-in h1 { color: #8B1A2B; }
+.form-page .op-banner { max-width: 640px; margin: -.6rem auto 1.2rem; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: .7rem 1rem; border-radius: var(--radius-md); font-size: 13.5px; line-height: 1.45; }
+.form-page .op-banner.out { background: #E6F2EC; color: #1F5A48; border: 1px solid #BFDCCF; }
+.form-page .op-banner.in { background: #F9EFF0; color: #6B1422; border: 1px solid #EBCBD0; }
+.form-page .op-banner button { border: none; background: rgba(255,255,255,.75); color: inherit; font: inherit; font-size: 12.5px; font-weight: 700; padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.form-page .op-banner button:hover { background: #fff; }
