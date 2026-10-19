@@ -44,6 +44,11 @@ const I = {
       <rect x="1" y="5" width="15" height="14" rx="2" />
     </svg>
   ),
+  plug: (
+    <svg viewBox="0 0 24 24">
+      <path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v5" />
+    </svg>
+  ),
   asset: (
     <svg viewBox="0 0 24 24">
       <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -224,6 +229,7 @@ export const HUBS: Record<string, HubConfig> = {
       { icon: I.briefcase, name: 'Employee devices', desc: 'Check-out (delivery) and check-in (return) — staff', href: '/employee-checkinout-hub', perm: 'it.checkin_employee' },
       { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub', perm: 'it.registries' },
       { icon: I.grid, name: 'Storico assegnazioni', desc: 'Storico dispositivi studenti — ricerca per email o ID', href: '/device-history', perm: 'it.history' },
+      { icon: I.plug, name: 'Accessori smarriti', desc: 'Lost chargers and cables — report and history', href: '/lost-accessories', perm: 'it.lost_accessories' },
       { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — H-IS Venezia', href: '/budget-management/venezia', perm: 'it.budget' },
       { icon: I.tasks, name: 'Task Manager', desc: 'Attività del team IT, gruppi di progetto e sotto-task', href: '/task-manager', perm: 'it.tasks' },
     ],

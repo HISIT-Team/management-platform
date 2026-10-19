@@ -201,6 +201,11 @@ const P: Record<IconName, React.ReactNode> = {
       <path d="M16 2v4M8 2v4M3 10h18" />
     </>
   ),
+  plug: (
+    <>
+      <path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v5" />
+    </>
+  ),
   alert: (
     <>
       <circle cx="12" cy="12" r="9" />

@@ -329,3 +329,13 @@
 .form-page .op-banner.in { background: #F9EFF0; color: #6B1422; border: 1px solid #EBCBD0; }
 .form-page .op-banner button { border: none; background: rgba(255,255,255,.75); color: inherit; font: inherit; font-size: 12.5px; font-weight: 700; padding: 6px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
 .form-page .op-banner button:hover { background: #fff; }
+
+/* ── Accessori smarriti ────────────────────────────────────────── */
+.form-page .la-header .logo { background: linear-gradient(135deg, #B26B00, #8A5200); box-shadow: 0 8px 16px -6px rgba(138,82,0,.45); }
+.form-page .la-hint { font-size: 13px; color: var(--f-gray-600); margin: -.3rem 0 .7rem; }
+.form-page .la-done { text-align: center; padding: 2rem 1.4rem; }
+.form-page .la-done-ic { width: 56px; height: 56px; margin: 0 auto .8rem; border-radius: 50%; background: #E6F2EC; color: #1F5A48; font-size: 28px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.form-page .la-done h2 { font-size: 20px; margin-bottom: .4rem; }
+.form-page .la-done p { font-size: 14px; color: var(--f-gray-600); margin-bottom: 1.2rem; }
+.form-page .la-done-actions { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.form-page .la-done-actions .submit-btn.la-link { width: auto; padding: 11px 22px; text-decoration: none; display: inline-flex; margin: 0; }

@@ -9,7 +9,7 @@
 //           file (or: supabase functions deploy submit-form)
 // Secrets:  WEBHOOK_ONBOARDING, WEBHOOK_OFFBOARDING, WEBHOOK_STUDENT_CHECKIN,
 //           WEBHOOK_STUDENT_CHECKOUT, WEBHOOK_EMPLOYEE_CHECKIN,
-//           WEBHOOK_EMPLOYEE_CHECKOUT, WEBHOOK_ROOM
+//           WEBHOOK_EMPLOYEE_CHECKOUT, WEBHOOK_ROOM, WEBHOOK_LOST_ACCESSORIES
 //
 // Optional secrets:
 //   ALLOWED_ORIGINS   comma-separated list of site origins allowed to call
@@ -64,6 +64,8 @@ const FORMS: Record<string, { roles: string[]; perm: string; webhookEnv: string 
   employee_checkin:  { roles: ['it'], perm: 'it.checkin_employee', webhookEnv: 'WEBHOOK_EMPLOYEE_CHECKIN' },
   employee_checkout: { roles: ['it'], perm: 'it.checkin_employee', webhookEnv: 'WEBHOOK_EMPLOYEE_CHECKOUT' },
   room:        { roles: ['boarding'], perm: 'boarding.rooms', webhookEnv: 'WEBHOOK_ROOM' },
+  // IT → Accessori smarriti (migration 0023)
+  lost_accessories: { roles: ['it'], perm: 'it.lost_accessories', webhookEnv: 'WEBHOOK_LOST_ACCESSORIES' },
 }
 
 // Echoes the caller's origin only when it is on the allowlist. With no

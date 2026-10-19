@@ -1,0 +1,20 @@
+{
+  "timestamp": "2026-10-19T09:30:00.000Z",
+  "type": "student",
+  "type_label": "Studente",
+  "first_name": "Marco",
+  "last_name": "Rossi",
+  "email": "marco.rossi@h-farmschool.com",
+  "school_or_company": "H-INTERNATIONAL SCHOOL SRL",
+  "parent_email_1": "parent1@email.com",
+  "parent_email_2": "",
+  "accessories": ["mac_charger", "mac_magsafe_cable"],
+  "accessories_labels": ["Alimentatore Mac", "Cavo MagSafe per Mac"],
+  "accessories_text": "Alimentatore Mac, Cavo MagSafe per Mac",
+  "accessories_count": 2,
+  "notes": "Perso in aula 3B",
+  "_submitted_by_email": "it.operator@h-farmschool.com",
+  "_submitted_by_id": "00000000-0000-0000-0000-000000000000",
+  "_submitted_by_role": "it",
+  "_server_timestamp": "2026-10-19T09:30:01.000Z"
+}

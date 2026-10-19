@@ -2,7 +2,7 @@
 
 **H-FARM International School · Management Platform**
 Technical and operational guide for whoever runs the platform
-Version of 13 October 2026 — up to date with database migration **0022**
+Version of 19 October 2026 — up to date with database migration **0023**
 
 ---
 
@@ -53,7 +53,7 @@ Main features active today:
 | Area | What you do there |
 |---|---|
 | **Dashboard** | Personalised home page: indicators, latest movements, budget, deadlines. |
-| **IT** | Device delivery and return for students and staff (signature, photos, QR scanning), assignment history, registries, student QR cards, link to the Asset Manager. |
+| **IT** | Device delivery and return for students and staff (signature, photos, QR scanning), assignment history, **lost accessories**, registries, student QR cards, link to the Asset Manager. |
 | **Budget** | Budget lines ("commesse") and expenses of the three schools (Venezia, Vicenza, Rosà), with new lines and allocation changes. *Owner, Super Admin, Admin only.* |
 | **Task Manager** | IT team tasks with project groups, sub-tasks, list and kanban views, Teams notifications. *Owner, Super Admin, Admin only.* |
 | **HR** | Onboarding (new employee) and offboarding (leaving employee) forms, registries. |
@@ -128,7 +128,7 @@ The site **has no server of its own**: it is a set of static pages. All "confide
 | **Edge Functions** | Supabase → *Edge Functions* (the code is also in `supabase/functions/` in the repo) | `submit-form`, `notify-powerautomate`, `send-auth-email`. |
 | **Edge Function secrets** | Supabase → *Edge Functions* → *Secrets* | List in chapter 11. |
 | **Database secrets** | Supabase → *Vault* (or `vault.secrets` via SQL) | Teams flow URL and platform address. |
-| **SQL migrations** | `supabase/migrations/` in the repo (0001 → 0022) | Run by hand in the SQL Editor. |
+| **SQL migrations** | `supabase/migrations/` in the repo (0001 → 0023) | Run by hand in the SQL Editor. |
 | **Automation flows** | **Microsoft Power Automate** (H-FARM School tenant) | They receive the forms via webhook. |
 | **Flow documentation** | `supabase/functions/notify-powerautomate/README.md`, `supabase/notifications/teams-task-assigned/` | Data schema and instructions. |
 | **Excel registries / photos** | SharePoint / OneDrive (links in the HR and Boarding pages) | Written by the Power Automate flows. |
@@ -223,6 +223,8 @@ Each folder inside `src/app/` is an address of the site. Example: `src/app/devic
 | `/employee-checkinout-hub`, `/modulo-employee` | Staff deliveries/returns (form) | `it.checkin_employee` |
 | `/qr` | Student QR card generator | `it.checkin_student` |
 | `/device-history` | Assignment history (search, edit, delete, export) | `it.history` |
+| `/lost-accessories` | Lost accessories: report history, export | `it.lost_accessories` |
+| `/lost-accessories/new` | Lost accessories report form | `it.lost_accessories` |
 | `/it-registries-hub` | Response registries | `it.registries` |
 | `/budget-management/venezia` · `/vicenza` · `/rosa` | Budget of the three schools | Owner/Super Admin/Admin only |
 | `/budget-management` | Schools overview | Owner/Super Admin/Admin only |
@@ -269,6 +271,7 @@ Usually each page has two files: `page.tsx` (the "envelope": title and access ch
 | `companies.ts` | The three companies and which company each role sees. |
 | `hubs.tsx` | Content of the hub pages (cards and links). |
 | `deviceLog.ts`, `deviceExport.ts`, `deviceIcons.tsx` | Device history: saving, reading, editing, Excel export. |
+| `lostAccessories.ts` | Lost accessories: accessory list, sending a report, history. |
 | `powerAutomate.ts` | Sending the device forms to `notify-powerautomate`. |
 | `qrCamera.ts` | Camera and QR reading (high resolution, phone's native reader when available). |
 | `image.ts` | Photo compression before sending. |
@@ -355,6 +358,7 @@ Each role has a set of **permissions** (what it can open). They are managed from
 | `it.checkin_employee` | Staff delivery/return forms |
 | `it.history` | Assignment history: read, search, edit, delete, export |
 | `it.registries` | IT response registries |
+| `it.lost_accessories` | Lost accessories: form, history, deletion |
 | `it.budget` 🔒 | H-IS Venezia budget |
 | `vi.budget` 🔒 | H-IS Vicenza budget |
 | `ro.budget` 🔒 | H-IS Rosà budget |
@@ -421,6 +425,7 @@ Supabase brings together four services:
 | `profiles` | One profile per user: first name, last name, email (copy of the login one), **role**, profile picture (small, max 150 KB). | Each user their own; Owner/Super Admin all (through functions) |
 | `auth.users` *(managed by Supabase)* | Sign-in accounts: email, encrypted password, MFA factors. | Supabase only |
 | `student_device_log` | **Student assignment history**: date, delivery/return, student **email** (no names), school, MacBook ID, iPad ID, chargers and cables included (yes/no), who signed, **signature** (compressed image, max 60 KB), who recorded it. | `it.history` permission (read, edit, delete); insert with `it.checkin_student` |
+| `lost_accessories_log` | **Lost accessories**: date, student or employee, **email** (no names, no parent emails), lost accessories, notes, who recorded it. | `it.lost_accessories` permission (read, insert, delete) |
 | `budget_lines` | Each school's **budget lines**: name, description, colour, allocation. | The school's budget permission (admins only) |
 | `budget_adjustments` | History of allocation changes (creation, increase/decrease, removal, reason, who). | Same as above |
 | `it_budget_expenses` | **Expenses**: school, budget line, description, supplier, amount, date, notes, who entered it. | Same as above |
@@ -436,7 +441,8 @@ Supabase brings together four services:
 
 ### 9.2 What is **not** stored in the database
 
-- **Students' first and last names**: by choice, the history keeps only the email.
+- **Students' first and last names**: by choice, the assignment history keeps only the email.
+- **Names and parent emails in lost accessories**: they go only to the Power Automate flow; the history keeps email and accessories.
 - **Device and damage photos**: they go only to Power Automate (saved to OneDrive/SharePoint by the flow).
 - **Onboarding, offboarding, room assignment, staff device forms**: not saved in Supabase; they are forwarded to Power Automate, which records them in Excel/SharePoint.
 - **Passwords**: managed by Supabase in encrypted form, never readable.
@@ -488,6 +494,7 @@ They are in **Supabase → Edge Functions** and their code is in the repository 
 | `employee_checkin` | `it.checkin_employee` | `WEBHOOK_EMPLOYEE_CHECKIN` |
 | `employee_checkout` | `it.checkin_employee` | `WEBHOOK_EMPLOYEE_CHECKOUT` |
 | `room` | `boarding.rooms` | `WEBHOOK_ROOM` |
+| `lost_accessories` | `it.lost_accessories` | `WEBHOOK_LOST_ACCESSORIES` |
 
 - **Limits:** maximum request 16 MB (photos are already compressed in the browser).
 - **Optional secrets:** `ALLOWED_ORIGINS` (allowed domains), `TURNSTILE_SECRET` (**do not set it**: the forms do not send the captcha yet and would be rejected).
@@ -538,6 +545,7 @@ They are in **Supabase → Edge Functions** and their code is in the repository 
 | `WEBHOOK_EMPLOYEE_CHECKIN` | submit-form | Staff return flow URL |
 | `WEBHOOK_EMPLOYEE_CHECKOUT` | submit-form | Staff delivery flow URL |
 | `WEBHOOK_ROOM` | submit-form | Room assignment flow URL |
+| `WEBHOOK_LOST_ACCESSORIES` | submit-form | Lost accessories flow URL (instructions in `supabase/notifications/lost-accessories/`) |
 | `POWER_AUTOMATE_WEBHOOK_URL` | notify-powerautomate | Device recap flow URL |
 | `ALLOWED_ORIGINS` *(optional)* | submit-form, notify-powerautomate | Site domains allowed to call the functions |
 | `TURNSTILE_SECRET` *(do not set for now)* | submit-form | Captcha on forms |
@@ -595,6 +603,15 @@ Secrets no longer used (can be deleted if present): `WEBHOOK_MEDICINE`, `WEBHOOK
 
 Search by email or ID, filters, current device status ("who has what"), charger/cable badges, **pencil** to correct a record, **bin** to delete it, Excel export. Every edit/deletion goes into the activity log.
 
+### 12.3-bis Lost accessories
+
+1. IT opens *Accessori smarriti* → **Nuova segnalazione** (new report).
+2. Chooses **Student** or **Employee**. For students the QR card can be scanned (fills first and last name, email, parent emails, school).
+3. Fills first name, last name, email (for students also parent email 1; email 2 is optional).
+4. Selects one or more accessories: Mac power adapter, iPad power adapter, MagSafe cable for Mac, USB Type-C cable for iPad; optional notes.
+5. On submit: `submit-form` → `WEBHOOK_LOST_ACCESSORIES` flow (with all the data) and a row in `lost_accessories_log` (**without names or parent emails**).
+6. The history shows counts per accessory, search by email, filters, Excel export and deletion (logged in the activity log).
+
 ### 12.4 Budget
 
 For each school: budget lines with allocation, expenses, remaining amount. *New budget line* button; *Budget* button on each line to add/remove allocation with a reason; a line without expenses can be removed. Everything is tracked in `budget_adjustments` and in the activity log.
@@ -637,8 +654,9 @@ Migrations are in `supabase/migrations/` and must be run **once, in order**, in 
 | 0020 | Editing history records |
 | 0021 | Chargers and cables in the history |
 | 0022 | Budget and Task Manager for Owner, Super Admin, Admin only |
+| 0023 | Lost accessories (permission, history table without names) |
 
-**Rebuilding the database from scratch** (e.g. new Supabase project): run 0001 → 0022 in order, then create the first Owner (see 15.1), insert the Vault secrets (0013) and recreate the Edge Function secrets.
+**Rebuilding the database from scratch** (e.g. new Supabase project): run 0001 → 0023 in order, then create the first Owner (see 15.1), insert the Vault secrets (0013) and recreate the Edge Function secrets.
 
 The file `supabase/checks/security_check.sql` contains security check queries (RLS enabled, policies present) to run in the SQL Editor.
 
