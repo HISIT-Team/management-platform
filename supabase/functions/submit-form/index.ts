@@ -22,6 +22,9 @@
 //                     this until the widget is wired into the forms, or every
 //                     submit will fail with 403.
 //
+// Drafts (migration 0024): a device form completed from a draft sends
+// `draft_id`; once the webhook accepted the form the draft is deleted here.
+//
 // Changes (security audit 2026-10-02):
 //   - 'superadmin' is accepted wherever 'admin' is (it was rejected).
 //   - 'guest' is rejected explicitly, before anything else is looked up.
@@ -131,12 +134,14 @@ Deno.serve(async (req) => {
     const raw = await req.text()
     if (raw.length > MAX_BODY_BYTES) return json(req, { error: 'Payload too large' }, 413)
 
-    let parsed: { form_type?: unknown; payload?: unknown; captchaToken?: unknown }
+    let parsed: { form_type?: unknown; payload?: unknown; captchaToken?: unknown; draft_id?: unknown }
     try { parsed = JSON.parse(raw) } catch { return json(req, { error: 'Malformed JSON body' }, 400) }
 
     const form_type = typeof parsed.form_type === 'string' ? parsed.form_type : ''
     const captchaToken = typeof parsed.captchaToken === 'string' ? parsed.captchaToken : ''
     const payload = parsed.payload
+    // Draft this form was completed from (migration 0024): deleted once the form is delivered.
+    const draftId = typeof parsed.draft_id === 'string' && /^[0-9a-f-]{36}$/i.test(parsed.draft_id) ? parsed.draft_id : ''
 
     // The payload is spread into the forwarded object, so it must be a plain
     // object — a string or array would produce a garbage body downstream.
@@ -211,7 +216,18 @@ Deno.serve(async (req) => {
       return json(req, { error: 'Submission could not be delivered, please retry' }, 502)
     }
 
-    return json(req, { ok: true })
+    // 7. The form was delivered: delete the draft it came from (device forms,
+    //    migration 0024). Only a draft of the same kind (student / employee)
+    //    the user is allowed to submit can be deleted this way.
+    let draftDeleted: boolean | undefined
+    const draftKind = form_type.startsWith('student_') ? 'student' : form_type.startsWith('employee_') ? 'employee' : ''
+    if (draftId && draftKind) {
+      const { error: delErr } = await admin.from('device_form_drafts').delete().eq('id', draftId).eq('kind', draftKind)
+      draftDeleted = !delErr
+      if (delErr) console.error('submit-form: draft delete failed', delErr.message)
+    }
+
+    return json(req, { ok: true, ...(draftDeleted === undefined ? {} : { draft_deleted: draftDeleted }) })
   } catch (e) {
     // Log the real error server-side, return a generic message: the raw text
     // can carry internal details (webhook host, stack) that the client

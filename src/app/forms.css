@@ -339,3 +339,17 @@
 .form-page .la-done p { font-size: 14px; color: var(--f-gray-600); margin-bottom: 1.2rem; }
 .form-page .la-done-actions { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .form-page .la-done-actions .submit-btn.la-link { width: auto; padding: 11px 22px; text-decoration: none; display: inline-flex; margin: 0; }
+
+/* ── Drafts (migration 0024) ───────────────────────────────────── */
+.form-page .draft-links { max-width: 640px; margin: -.8rem auto .8rem; text-align: right; }
+.form-page .draft-links a { font-size: 13px; font-weight: 700; color: var(--brand); text-decoration: none; }
+.form-page .draft-banner { max-width: 640px; margin: 0 auto 1rem; padding: .75rem 1rem; border-radius: var(--radius-md); background: #EEF2FA; border: 1px solid #CDD8EC; color: #2B4470; font-size: 13.5px; line-height: 1.45; display: flex; flex-direction: column; gap: 2px; }
+.form-page .draft-saved { max-width: 640px; margin: 0 auto 1rem; padding: .7rem 1rem; border-radius: var(--radius-md); background: #E6F2EC; border: 1px solid #BFDCCF; color: #1F5A48; font-size: 13.5px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.form-page .draft-saved span { flex: 1; min-width: 200px; }
+.form-page .draft-saved a { font-weight: 700; color: inherit; }
+.form-page .draft-saved button { border: none; background: none; font-size: 20px; line-height: 1; color: inherit; cursor: pointer; }
+.form-page .draft-btn { width: 100%; margin-top: .6rem; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 18px; border-radius: var(--radius-md); border: 1.5px dashed #9AAAC8; background: #F6F8FC; color: #2B4470; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; }
+.form-page .draft-btn:hover { background: #EEF2FA; }
+.form-page .draft-btn:disabled { opacity: .6; cursor: default; }
+.form-page .draft-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.form-page .draft-note { font-size: 12px; color: var(--f-gray-600); text-align: center; margin-top: .5rem; }

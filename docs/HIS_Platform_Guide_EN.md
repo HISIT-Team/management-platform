@@ -2,7 +2,7 @@
 
 **H-FARM International School · Management Platform**
 Technical and operational guide for whoever runs the platform
-Version of 19 October 2026 — up to date with database migration **0023**
+Version of 20 October 2026 — up to date with database migration **0024**
 
 ---
 
@@ -128,7 +128,7 @@ The site **has no server of its own**: it is a set of static pages. All "confide
 | **Edge Functions** | Supabase → *Edge Functions* (the code is also in `supabase/functions/` in the repo) | `submit-form`, `notify-powerautomate`, `send-auth-email`. |
 | **Edge Function secrets** | Supabase → *Edge Functions* → *Secrets* | List in chapter 11. |
 | **Database secrets** | Supabase → *Vault* (or `vault.secrets` via SQL) | Teams flow URL and platform address. |
-| **SQL migrations** | `supabase/migrations/` in the repo (0001 → 0023) | Run by hand in the SQL Editor. |
+| **SQL migrations** | `supabase/migrations/` in the repo (0001 → 0024) | Run by hand in the SQL Editor. |
 | **Automation flows** | **Microsoft Power Automate** (H-FARM School tenant) | They receive the forms via webhook. |
 | **Flow documentation** | `supabase/functions/notify-powerautomate/README.md`, `supabase/notifications/teams-task-assigned/` | Data schema and instructions. |
 | **Excel registries / photos** | SharePoint / OneDrive (links in the HR and Boarding pages) | Written by the Power Automate flows. |
@@ -222,6 +222,7 @@ Each folder inside `src/app/` is an address of the site. Example: `src/app/devic
 | `/student-checkinout-hub`, `/modulo-student` | Student deliveries/returns (form) | `it.checkin_student` |
 | `/employee-checkinout-hub`, `/modulo-employee` | Staff deliveries/returns (form) | `it.checkin_employee` |
 | `/qr` | Student QR card generator | `it.checkin_student` |
+| `/device-drafts` | Delivery/return drafts: open, sign, send | `it.checkin_student` |
 | `/device-history` | Assignment history (search, edit, delete, export) | `it.history` |
 | `/lost-accessories` | Lost accessories: report history, export | `it.lost_accessories` |
 | `/lost-accessories/new` | Lost accessories report form | `it.lost_accessories` |
@@ -271,6 +272,7 @@ Usually each page has two files: `page.tsx` (the "envelope": title and access ch
 | `companies.ts` | The three companies and which company each role sees. |
 | `hubs.tsx` | Content of the hub pages (cards and links). |
 | `deviceLog.ts`, `deviceExport.ts`, `deviceIcons.tsx` | Device history: saving, reading, editing, Excel export. |
+| `deviceDrafts.ts` | Drafts of the device forms: save, load, list, delete. |
 | `lostAccessories.ts` | Lost accessories: accessory list, sending a report, history. |
 | `powerAutomate.ts` | Sending the device forms to `notify-powerautomate`. |
 | `qrCamera.ts` | Camera and QR reading (high resolution, phone's native reader when available). |
@@ -425,6 +427,7 @@ Supabase brings together four services:
 | `profiles` | One profile per user: first name, last name, email (copy of the login one), **role**, profile picture (small, max 150 KB). | Each user their own; Owner/Super Admin all (through functions) |
 | `auth.users` *(managed by Supabase)* | Sign-in accounts: email, encrypted password, MFA factors. | Supabase only |
 | `student_device_log` | **Student assignment history**: date, delivery/return, student **email** (no names), school, MacBook ID, iPad ID, chargers and cables included (yes/no), who signed, **signature** (compressed image, max 60 KB), who recorded it. | `it.history` permission (read, edit, delete); insert with `it.checkin_student` |
+| `device_form_drafts` | **Drafts** of the delivery/return forms: all form data and photos, **never the signature**. Temporary: deleted when the signed form is sent and after 14 days anyway. | `it.checkin_student` / `it.checkin_employee` permission |
 | `lost_accessories_log` | **Lost accessories**: date, student or employee, **email** (no names, no parent emails), lost accessories, notes, who recorded it. | `it.lost_accessories` permission (read, insert, delete) |
 | `budget_lines` | Each school's **budget lines**: name, description, colour, allocation. | The school's budget permission (admins only) |
 | `budget_adjustments` | History of allocation changes (creation, increase/decrease, removal, reason, who). | Same as above |
@@ -496,6 +499,7 @@ They are in **Supabase → Edge Functions** and their code is in the repository 
 | `room` | `boarding.rooms` | `WEBHOOK_ROOM` |
 | `lost_accessories` | `it.lost_accessories` | `WEBHOOK_LOST_ACCESSORIES` |
 
+- **Drafts:** when the form comes from a draft (`draft_id`), once the flow has accepted the form the function **deletes the draft** from the database.
 - **Limits:** maximum request 16 MB (photos are already compressed in the browser).
 - **Optional secrets:** `ALLOWED_ORIGINS` (allowed domains), `TURNSTILE_SECRET` (**do not set it**: the forms do not send the captcha yet and would be rejected).
 
@@ -599,6 +603,14 @@ Secrets no longer used (can be deleted if present): `WEBHOOK_MEDICINE`, `WEBHOOK
 5. Chooses who signs and collects the signature. **Every field is mandatory** (except the second parent email).
 6. On submit: `submit-form` → flow; a row in the **history** (`student_device_log`); `notify-powerautomate` → Excel, OneDrive, recap email.
 
+### 12.2-bis Drafts (prepare first, sign later)
+
+1. In the delivery/return form scan the QR and fill devices, Asset IDs and photos, then press **Save as draft**. The form is cleared, ready for the next student.
+2. Drafts are in *IT → Bozze consegne* (`/device-drafts`), visible to the whole IT team from any device.
+3. When the student is there: **Apri e fai firmare** (open and sign) → the pre-filled form opens → signature → **Submit form**.
+4. On submit the draft is **deleted**: by the `submit-form` Edge Function (server side, as soon as the flow accepted the form) and, as a safety net, by the browser, which checks it no longer exists.
+5. A draft that is never sent expires after **14 days** and is deleted when someone opens the Drafts page (or nightly with pg_cron, optional). The signature is never saved in a draft.
+
 ### 12.3 Assignment history
 
 Search by email or ID, filters, current device status ("who has what"), charger/cable badges, **pencil** to correct a record, **bin** to delete it, Excel export. Every edit/deletion goes into the activity log.
@@ -655,8 +667,9 @@ Migrations are in `supabase/migrations/` and must be run **once, in order**, in 
 | 0021 | Chargers and cables in the history |
 | 0022 | Budget and Task Manager for Owner, Super Admin, Admin only |
 | 0023 | Lost accessories (permission, history table without names) |
+| 0024 | Drafts of the delivery/return forms |
 
-**Rebuilding the database from scratch** (e.g. new Supabase project): run 0001 → 0023 in order, then create the first Owner (see 15.1), insert the Vault secrets (0013) and recreate the Edge Function secrets.
+**Rebuilding the database from scratch** (e.g. new Supabase project): run 0001 → 0024 in order, then create the first Owner (see 15.1), insert the Vault secrets (0013) and recreate the Edge Function secrets.
 
 The file `supabase/checks/security_check.sql` contains security check queries (RLS enabled, policies present) to run in the SQL Editor.
 

@@ -30,6 +30,7 @@ export type NavIcon =
   | 'sliders'
   | 'cart'
   | 'plug'
+  | 'draft'
   | 'user'
   | 'external';
 
@@ -73,6 +74,7 @@ export const NAV: NavGroup[] = [
         children: [
           { label: 'Dispositivi studenti', href: '/student-checkinout-hub', icon: 'box', roles: ['it', 'admin'], perm: 'it.checkin_student', match: ['/modulo-student'] },
           { label: 'Dispositivi dipendenti', href: '/employee-checkinout-hub', icon: 'briefcase', roles: ['it', 'admin'], perm: 'it.checkin_employee', match: ['/modulo-employee'] },
+          { label: 'Bozze consegne', href: '/device-drafts', icon: 'draft', roles: ['it', 'admin'], perm: 'it.checkin_student' },
           { label: 'Storico assegnazioni', href: '/device-history', icon: 'history', roles: ['it', 'admin'], perm: 'it.history' },
           { label: 'Accessori smarriti', href: '/lost-accessories', icon: 'plug', roles: ['it', 'admin'], perm: 'it.lost_accessories' },
           { label: 'Registri risposte', href: '/it-registries-hub', icon: 'registry', roles: ['it', 'admin'], perm: 'it.registries' },

@@ -12,6 +12,7 @@ import { compressImage } from '@/lib/image';
 import { submitForm } from '@/lib/auth';
 import { compactSignature, logStudentDevice } from '@/lib/deviceLog';
 import { notifyPowerAutomate, splitDataUrl } from '@/lib/powerAutomate';
+import { type DraftSummary, deleteDraft, loadDraft, saveDraft } from '@/lib/deviceDrafts';
 
 export interface DeviceDef {
   name: string;
@@ -166,6 +167,9 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
   const [hasSig, setHasSig] = useState(false);
   // After the first submit attempt the missing fields are shown in red.
   const [tried, setTried] = useState(false);
+  // Draft being completed (migration 0024): opened from /device-drafts.
+  const [draft, setDraft] = useState<Pick<DraftSummary, 'id' | 'label' | 'created_by_name' | 'updated_at'> | null>(null);
+  const [savedNotice, setSavedNotice] = useState('');
 
   const applyOpFromUrl = () => {
     const p = new URLSearchParams(window.location.search).get('op');
@@ -181,6 +185,51 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
   useEffect(() => {
     applyOpFromUrl();
   }, []);
+
+  /* ?draft=<id>: fill the form from a saved draft (everything but the signature). */
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('draft');
+    if (!id) return;
+    let active = true;
+    loadDraft(id)
+      .then((d) => {
+        if (!active) return;
+        if (!d || d.kind !== config.kind) {
+          showToast('Draft not found: it was already sent or it expired.', true);
+          setDraftParam(null);
+          return;
+        }
+        const v = (d.data ?? {}) as Partial<typeof d.data>;
+        setOp(d.operation);
+        setFixedOp(true);
+        setFirstName(v.firstName ?? '');
+        setLastName(v.lastName ?? '');
+        setEmail(v.email ?? '');
+        setOrg(v.org ?? '');
+        setEmail1(v.email1 ?? '');
+        setEmail2(v.email2 ?? '');
+        setSelected(Array.isArray(v.selected) ? v.selected : []);
+        setDetails((v.details ?? {}) as Record<string, DeviceState>);
+        setSigner(v.signer ?? null);
+        setDraft({ id: d.id, label: d.label, created_by_name: d.created_by_name, updated_at: d.updated_at });
+      })
+      .catch((e: Error) => active && showToast(e.message, true));
+    return () => {
+      active = false;
+    };
+  }, [config.kind, showToast]);
+
+  /** Keeps ?draft= in the address in step with the draft being edited. */
+  function setDraftParam(id: string | null) {
+    try {
+      const u = new URL(window.location.href);
+      if (id) u.searchParams.set('draft', id);
+      else u.searchParams.delete('draft');
+      window.history.replaceState(null, '', u.toString());
+    } catch {
+      /* ignore */
+    }
+  }
 
   /* Wrong operation opened from the hub: switch without losing what was typed. */
   function switchOp(next: 'Check-in' | 'Check-out') {
@@ -258,8 +307,27 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
     setTried(false);
     sigRef.current?.clear();
     setHasSig(false);
+    setDraft(null);
+    setDraftParam(null);
     applyOpFromUrl();
     window.scrollTo(0, 0);
+  }
+
+  /* Save as draft: everything typed/scanned so far, photos included, never
+     the signature. Then the form is cleared for the next student. */
+  async function handleSaveDraft() {
+    if (!op) return showToast('Select delivery or return first.', true);
+    if (!firstName.trim() && !lastName.trim() && !email.trim()) return showToast('Scan the QR or enter at least the name or the email.', true);
+    setBusy(true);
+    try {
+      const who = `${firstName.trim()} ${lastName.trim()}`.trim() || email.trim();
+      await saveDraft(draft?.id ?? null, config.kind, op, { firstName, lastName, email, org, email1, email2, selected, details, signer });
+      resetForm();
+      setSavedNotice(`Draft saved: ${who}. Open it from Drafts when the ${config.kind} is here, sign and send.`);
+    } catch (e) {
+      showToast('Draft not saved: ' + (e as Error).message, true);
+    }
+    setBusy(false);
   }
 
   function handleQr(raw: string): boolean {
@@ -354,7 +422,13 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
               ...base,
               employee: { first_name: firstName.trim(), last_name: lastName.trim(), email: email.trim(), company: org },
             };
-      await submitForm(config.formTypeByOp[op], payload);
+      const draftId = draft?.id;
+      await submitForm(config.formTypeByOp[op], payload, undefined, draftId);
+
+      // Sent: the draft must disappear. submit-form already deleted it on the
+      // server; delete it here too and check it is really gone.
+      let draftLeft = false;
+      if (draftId) draftLeft = !(await deleteDraft(draftId).catch(() => false));
 
       // After the form is sent: (1) student forms keep a row in
       // `student_device_log`; (2) every form is forwarded to Power Automate.
@@ -424,8 +498,9 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
         warnings.push('Power Automate');
         console.error('Power Automate notification failed', paRes.reason);
       }
+      if (draftLeft) warnings.push('deleting the draft (delete it from Drafts)');
       if (warnings.length) showToast(`Form submitted ✓ — but ${warnings.join(' and ')} failed`, true);
-      else showToast('Form submitted ✓');
+      else showToast(draftId ? 'Form submitted ✓ — draft deleted' : 'Form submitted ✓');
       resetForm();
     } catch (e) {
       showToast('Submission failed: ' + (e as Error).message, true);
@@ -453,6 +528,31 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
             <p>{op ? OPTIONS.find((o) => o.value === op)?.sub(config.kind) : 'Choose the operation below'}</p>
           </div>
         </div>
+
+        <div className="draft-links">
+          <Link href="/device-drafts">Drafts / Bozze →</Link>
+        </div>
+
+        {savedNotice ? (
+          <div className="draft-saved" role="status">
+            <span>{savedNotice}</span>
+            <Link href="/device-drafts">Go to drafts</Link>
+            <button type="button" onClick={() => setSavedNotice('')} aria-label="Close">
+              ×
+            </button>
+          </div>
+        ) : null}
+
+        {draft ? (
+          <div className="draft-banner" role="status">
+            <b>Draft: {draft.label}</b>
+            <span>
+              Prepared{draft.created_by_name ? ` by ${draft.created_by_name}` : ''} · last change{' '}
+              {new Date(draft.updated_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}. Check the
+              data, collect the signature and send: the draft is deleted when the form is sent.
+            </span>
+          </div>
+        ) : null}
 
         {op && fixedOp ? (
           <div className={'op-banner ' + (op === 'Check-out' ? 'out' : 'in')} role="status">
@@ -716,6 +816,15 @@ export default function DeviceCheckoutForm({ config }: { config: CheckoutConfig 
                 </svg>
                 {busy ? 'Sending…' : 'Submit form'}
               </button>
+              <button className="draft-btn" type="button" onClick={handleSaveDraft} disabled={busy}>
+                <svg viewBox="0 0 24 24">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                {draft ? 'Update draft (sign later)' : 'Save as draft (sign later)'}
+              </button>
+              <p className="draft-note">A draft keeps everything except the signature. It is deleted when the form is sent, or after 14 days.</p>
             </>
           )}
         </div>

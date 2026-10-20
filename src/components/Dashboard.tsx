@@ -40,6 +40,7 @@ const SECTION_META: Record<string, { desc: string; color: string; soft: string }
   '/budget-management/vicenza': { desc: 'Commesse, spese e stanziamenti', color: '#3C5A8A', soft: '#E8EEF7' },
   '/budget-management/rosa': { desc: 'Commesse, spese e stanziamenti', color: '#2F6E5B', soft: '#E6F2EC' },
   '/role-permissions': { desc: 'Cosa può vedere ogni ruolo', color: '#5B1220', soft: '#F3E3E6' },
+  '/device-drafts': { desc: 'Consegne preparate: apri, fai firmare, invia', color: '#3C5A8A', soft: '#E8EEF7' },
   '/lost-accessories': { desc: 'Alimentatori e cavi smarriti: segnalazioni e storico', color: '#9A5B00', soft: '#FFF3E4' },
 };
 

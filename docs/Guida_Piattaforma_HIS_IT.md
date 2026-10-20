@@ -2,7 +2,7 @@
 
 **H-FARM International School · Management Platform**
 Guida tecnica e operativa per chi gestisce la piattaforma
-Versione del 19 ottobre 2026 — aggiornata alla migrazione database **0023**
+Versione del 20 ottobre 2026 — aggiornata alla migrazione database **0024**
 
 ---
 
@@ -128,7 +128,7 @@ Il sito **non ha un server proprio**: è un insieme di pagine statiche. Tutta la
 | **Edge Functions** | Supabase → *Edge Functions* (il codice è anche in `supabase/functions/` nel repo) | `submit-form`, `notify-powerautomate`, `send-auth-email`. |
 | **Secret delle Edge Functions** | Supabase → *Edge Functions* → *Secrets* | Elenco al capitolo 11. |
 | **Secret del database** | Supabase → *Vault* (o `vault.secrets` via SQL) | URL del flow Teams e indirizzo della piattaforma. |
-| **Migrazioni SQL** | `supabase/migrations/` nel repo (0001 → 0023) | Si eseguono a mano nel SQL Editor. |
+| **Migrazioni SQL** | `supabase/migrations/` nel repo (0001 → 0024) | Si eseguono a mano nel SQL Editor. |
 | **Flussi di automazione** | **Microsoft Power Automate** (tenant H-FARM School) | Ricevono i moduli tramite webhook. |
 | **Documentazione dei flussi** | `supabase/functions/notify-powerautomate/README.md`, `supabase/notifications/teams-task-assigned/` | Schema dei dati e istruzioni. |
 | **Registri Excel / foto** | SharePoint / OneDrive (link nelle pagine HR e Boarding) | Scritti dai flow Power Automate. |
@@ -222,6 +222,7 @@ Ogni cartella dentro `src/app/` corrisponde a un indirizzo del sito. Esempio: `s
 | `/student-checkinout-hub`, `/modulo-student` | Consegne/restituzioni studenti (modulo) | `it.checkin_student` |
 | `/employee-checkinout-hub`, `/modulo-employee` | Consegne/restituzioni dipendenti (modulo) | `it.checkin_employee` |
 | `/qr` | Generatore card QR studente | `it.checkin_student` |
+| `/device-drafts` | Bozze consegne/restituzioni: apri, fai firmare, invia | `it.checkin_student` |
 | `/device-history` | Storico assegnazioni (ricerca, modifica, elimina, export) | `it.history` |
 | `/lost-accessories` | Accessori smarriti: storico segnalazioni, export | `it.lost_accessories` |
 | `/lost-accessories/new` | Modulo di segnalazione accessori smarriti | `it.lost_accessories` |
@@ -271,6 +272,7 @@ Di solito ogni pagina ha due file: `page.tsx` (la "busta": titolo e controllo ac
 | `companies.ts` | Le tre società e quale società vede ogni ruolo. |
 | `hubs.tsx` | Contenuto delle pagine hub (schede e link). |
 | `deviceLog.ts`, `deviceExport.ts`, `deviceIcons.tsx` | Storico dispositivi: salvataggio, lettura, modifica, export Excel. |
+| `deviceDrafts.ts` | Bozze dei moduli dispositivi: salvataggio, caricamento, elenco, eliminazione. |
 | `lostAccessories.ts` | Accessori smarriti: elenco accessori, invio segnalazione, storico. |
 | `powerAutomate.ts` | Invio dei moduli dispositivi a `notify-powerautomate`. |
 | `qrCamera.ts` | Fotocamera e lettura QR (alta risoluzione, lettore nativo del telefono se disponibile). |
@@ -425,6 +427,7 @@ Supabase raccoglie quattro servizi:
 | `profiles` | Un profilo per utente: nome, cognome, email (copia di quella di login), **ruolo**, foto profilo (piccola, max 150 KB). | Ognuno il proprio; Owner/Super Admin tutti (tramite funzioni) |
 | `auth.users` *(gestita da Supabase)* | Account di accesso: email, password cifrata, fattori MFA. | Solo Supabase |
 | `student_device_log` | **Storico assegnazioni studenti**: data, consegna/restituzione, **email** dello studente (nessun nome), scuola, MacBook ID, iPad ID, caricatori e cavi inclusi (sì/no), chi ha firmato, **firma** (immagine compressa, max 60 KB), chi ha registrato. | Permesso `it.history` (lettura, modifica, eliminazione); inserimento con `it.checkin_student` |
+| `device_form_drafts` | **Bozze** dei moduli consegna/restituzione: tutti i dati del modulo e le foto, **mai la firma**. Temporanee: eliminate all'invio del modulo firmato e comunque dopo 14 giorni. | Permesso `it.checkin_student` / `it.checkin_employee` |
 | `lost_accessories_log` | **Accessori smarriti**: data, studente o dipendente, **email** (nessun nome, nessuna email dei genitori), accessori smarriti, note, chi ha registrato. | Permesso `it.lost_accessories` (lettura, inserimento, eliminazione) |
 | `budget_lines` | Le **commesse** di ogni scuola: nome, descrizione, colore, stanziamento. | Permesso budget della scuola (solo admin) |
 | `budget_adjustments` | Storico delle modifiche agli stanziamenti (creazione, aumento/diminuzione, rimozione, motivo, chi). | Come sopra |
@@ -496,6 +499,7 @@ Si trovano in **Supabase → Edge Functions** e il loro codice è nel repository
 | `room` | `boarding.rooms` | `WEBHOOK_ROOM` |
 | `lost_accessories` | `it.lost_accessories` | `WEBHOOK_LOST_ACCESSORIES` |
 
+- **Bozze:** se il modulo arriva da una bozza (`draft_id`), dopo che il flow ha accettato il modulo la funzione **elimina la bozza** dal database.
 - **Limiti:** richiesta massima 16 MB (le foto sono già compresse nel browser).
 - **Secret opzionali:** `ALLOWED_ORIGINS` (domini autorizzati), `TURNSTILE_SECRET` (**non impostarlo**: i moduli non inviano ancora il captcha e verrebbero rifiutati).
 
@@ -599,6 +603,14 @@ Secret non più usati (eliminabili se presenti): `WEBHOOK_MEDICINE`, `WEBHOOK_DI
 5. Sceglie chi firma e raccoglie la firma. **Tutti i campi sono obbligatori** (tranne la seconda email del genitore).
 6. All'invio: `submit-form` → flow; riga nello **storico** (`student_device_log`); `notify-powerautomate` → Excel, OneDrive, email di riepilogo.
 
+### 12.2-bis Bozze (prepara prima, fai firmare dopo)
+
+1. Nel modulo consegna/restituzione scansiona il QR e compila dispositivi, Asset ID e foto, poi premi **Save as draft**. Il modulo si svuota, pronto per il prossimo studente.
+2. Le bozze sono in *IT → Bozze consegne* (`/device-drafts`), visibili a tutto il team IT da qualsiasi dispositivo.
+3. Quando lo studente è presente: **Apri e fai firmare** → si apre il modulo già compilato → firma → **Submit form**.
+4. All'invio la bozza viene **eliminata**: dalla Edge Function `submit-form` (lato server, appena il flow ha accettato il modulo) e, per sicurezza, anche dal browser, che verifica che non esista più.
+5. Una bozza non inviata scade dopo **14 giorni** e viene cancellata quando qualcuno apre la pagina Bozze (o ogni notte con pg_cron, facoltativo). La firma non viene mai salvata nella bozza.
+
 ### 12.3 Storico assegnazioni
 
 Ricerca per email o ID, filtri, stato attuale dei dispositivi ("chi ha cosa"), badge caricatore/cavo, **matita** per correggere un record, **cestino** per eliminarlo, export Excel. Ogni modifica/eliminazione va nel registro attività.
@@ -655,8 +667,9 @@ Le migrazioni si trovano in `supabase/migrations/` e vanno eseguite **una volta,
 | 0021 | Caricatori e cavi nello storico |
 | 0022 | Budget e Task Manager solo per Owner, Super Admin, Admin |
 | 0023 | Accessori smarriti (permesso, tabella storico senza nomi) |
+| 0024 | Bozze dei moduli consegna/restituzione |
 
-**Ricostruire il database da zero** (es. nuovo progetto Supabase): eseguire 0001 → 0023 in ordine, poi creare il primo Owner (vedi 15.1), inserire i segreti del Vault (0013) e ricreare i secret delle Edge Functions.
+**Ricostruire il database da zero** (es. nuovo progetto Supabase): eseguire 0001 → 0024 in ordine, poi creare il primo Owner (vedi 15.1), inserire i segreti del Vault (0013) e ricreare i secret delle Edge Functions.
 
 Il file `supabase/checks/security_check.sql` contiene query di verifica della sicurezza (RLS attiva, policy presenti) da eseguire nel SQL Editor.
 

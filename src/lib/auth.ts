@@ -207,7 +207,7 @@ export async function checkAccess(allowedRoles?: string[], perm?: string): Promi
 // Sends a form through the 'submit-form' Edge Function instead of hitting the
 // webhook directly. The function verifies the user's session + role server-side
 // and forwards to the (hidden) webhook.
-export async function submitForm(formType: string, payload: unknown, captchaToken?: string) {
+export async function submitForm(formType: string, payload: unknown, captchaToken?: string, draftId?: string) {
   const sb = getSupabase();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) throw new Error('You must be signed in to submit this form.');
@@ -219,9 +219,9 @@ export async function submitForm(formType: string, payload: unknown, captchaToke
       Authorization: 'Bearer ' + session.access_token,
       ...trustedDeviceHeaders(), // remembered device (MFA), checked by the function
     },
-    body: JSON.stringify({ form_type: formType, payload, captchaToken }),
+    body: JSON.stringify({ form_type: formType, payload, captchaToken, ...(draftId ? { draft_id: draftId } : {}) }),
   });
-  let data: { error?: string } = {};
+  let data: { error?: string; draft_deleted?: boolean } = {};
   try {
     data = await res.json();
   } catch {

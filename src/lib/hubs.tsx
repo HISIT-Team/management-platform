@@ -44,6 +44,13 @@ const I = {
       <rect x="1" y="5" width="15" height="14" rx="2" />
     </svg>
   ),
+  draft: (
+    <svg viewBox="0 0 24 24">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  ),
   plug: (
     <svg viewBox="0 0 24 24">
       <path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0V8zM12 17v5" />
@@ -338,6 +345,7 @@ export const HUBS: Record<string, HubConfig> = {
     cards: [
       { icon: I.checkin, name: 'Check-out · Delivery', desc: 'The employee RECEIVES a device from IT', href: '/modulo-employee?op=checkout' },
       { icon: I.checkout, name: 'Check-in · Return', desc: 'The employee GIVES a device back to IT', href: '/modulo-employee?op=checkin' },
+      { icon: I.draft, name: 'Drafts · Bozze', desc: 'Forms prepared in advance: open, sign and send', href: '/device-drafts' },
     ],
   },
 
@@ -352,6 +360,7 @@ export const HUBS: Record<string, HubConfig> = {
     cards: [
       { icon: I.checkin, name: 'Check-out · Delivery', desc: 'The student RECEIVES a device from IT', href: '/modulo-student?op=checkout' },
       { icon: I.checkout, name: 'Check-in · Return', desc: 'The student GIVES a device back to IT', href: '/modulo-student?op=checkin' },
+      { icon: I.draft, name: 'Drafts · Bozze', desc: 'Forms prepared in advance: open, sign and send', href: '/device-drafts' },
     ],
   },
 };
