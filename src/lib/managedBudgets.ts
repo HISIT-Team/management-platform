@@ -12,7 +12,15 @@ export async function listManagedBudgets(): Promise<ManagedBudget[]> {
 export async function createManagedBudget(name: string, description: string): Promise<ManagedBudget> {
   const slug = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 39);
   const { data, error } = await getSupabase().from('budget_catalog').insert({ name: name.trim(), description: description.trim() || null, slug }).select('id,slug,name,description,legacy_it,active').single();
-  if (error) throw error; return data as ManagedBudget;
+  if (error) throw error;
+  const schools = [
+    { school: 'venezia', name: 'Venezia', full_name: 'H-International School Venezia', location: 'Roncade (TV)' },
+    { school: 'vicenza', name: 'Vicenza', full_name: 'H-International School Vicenza', location: 'Vicenza (VI)' },
+    { school: 'rosa', name: 'Rosà', full_name: 'H-International School Rosà', location: 'Rosà (VI)' },
+  ].map((s) => ({ ...s, budget_id: data.id, code: `${slug}_${s.school}` }));
+  const { error: schoolsError } = await getSupabase().from('budget_schools').insert(schools);
+  if (schoolsError) throw schoolsError;
+  return data as ManagedBudget;
 }
 export async function loadManagedBudget(slug: string) {
   const sb = getSupabase();

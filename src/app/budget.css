@@ -415,6 +415,21 @@
 .budget-page .school-card.is-disabled .school-go svg { stroke: var(--b-faint); stroke-width: 2; }
 .budget-page .school-card.is-disabled:hover .school-go { background: transparent; transform: none; }
 
+/* Budget catalogue and its budget-specific access dialog. */
+.budget-page .budget-card-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.budget-page .school-card.budget-card { grid-template-columns: 54px minmax(0, 1fr) auto; }
+.budget-page .school-card .school-txt { min-width: 0; text-decoration: none; }
+.budget-page .school-card .school-txt .school-name { color: var(--b-ink); }
+.budget-page .field-help { margin: 5px 0 0; color: var(--b-faint); font-size: 11.5px; }
+.budget-page .access-check { display: flex; align-items: center; gap: 8px; color: var(--b-ink); cursor: pointer; margin: 1rem 0; }
+.budget-page .access-check input { width: 16px; height: 16px; accent-color: var(--brand); }
+.budget-page .access-list { display: grid; gap: 7px; max-height: 210px; overflow-y: auto; padding-top: .35rem; }
+.budget-page .access-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 11px; border: 1px solid var(--b-line); border-radius: 10px; background: var(--b-soft); }
+.budget-page .access-row strong, .budget-page .access-row span { display: block; }
+.budget-page .access-row strong { font-size: 12.5px; }
+.budget-page .access-row div > span { margin-top: 1px; color: var(--b-muted); font-size: 11px; }
+.budget-page .access-empty { color: var(--b-muted); font-size: 12.5px; margin: 1rem 0 0; }
+
 /* A ledger row whose budget code no longer belongs to the school's lines
    (e.g. a retired commessa) — shown so it can still be reviewed/removed. */
 .budget-page .tag--orphan { background: var(--b-soft); color: var(--b-muted); border: 1px dashed #E4DCDD; }
@@ -431,4 +446,6 @@
   .budget-page .b-head { align-items: flex-start; }
   .budget-page .b-head .btn-primary { width: 100%; justify-content: center; }
   .budget-page .row2 { grid-template-columns: 1fr; }
+  .budget-page .school-card.budget-card { grid-template-columns: 54px minmax(0, 1fr); }
+  .budget-page .budget-card-actions { grid-column: 1 / -1; width: 100%; margin-left: 0; justify-content: space-between; }
 }

@@ -11,6 +11,7 @@ import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
 import { getCurrentUser, loadProfile, profileName } from '@/lib/auth';
 import { asLocalDate, exportExcel } from '@/lib/excel';
+import { getSupabase } from '@/lib/supabase';
 import {
   type BudgetLine,
   type Expense,
@@ -21,7 +22,6 @@ import {
   formatEUR,
   formatEURShort,
   type BudgetAdjustment,
-  BUDGET_PERM,
   LINE_ACCENTS,
   adjustBudgetLine,
   archiveBudgetLine,
@@ -127,7 +127,7 @@ const R = 64;
 const CIRC = 2 * Math.PI * R;
 
 /* ── Component ─────────────────────────────────────────────────── */
-export default function BudgetClient({ school }: { school: School }) {
+export default function BudgetClient({ school, backHref = '/budget', budgetLabel }: { school: School; backHref?: string; budgetLabel?: string }) {
   const { showToast, toastNode } = useToast();
 
   // Budget lines come from the database (migration 0018); the static ones
@@ -158,6 +158,9 @@ export default function BudgetClient({ school }: { school: School }) {
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Expense | null>(null);
   const [busy, setBusy] = useState(false);
+  // RLS is the source of truth.  This value only keeps the interface honest:
+  // a viewer sees exactly the same dashboard, without write actions.
+  const [canEdit, setCanEdit] = useState(false);
 
   // Expense form
   const [fCode, setFCode] = useState(lines[0]?.code ?? '');
@@ -200,6 +203,10 @@ export default function BudgetClient({ school }: { school: School }) {
       .finally(() => {
         if (active) setLoading(false);
       });
+
+    getSupabase()
+      .rpc('budget_school_can_edit', { p_school: school.code })
+      .then(({ data }) => active && setCanEdit(data === true));
 
     getCurrentUser()
       .then(async (u) => {
@@ -409,8 +416,8 @@ export default function BudgetClient({ school }: { school: School }) {
     : 0;
 
   return (
-    <AuthGuard roles={['owner', 'superadmin', 'controller', 'admin']}>
-      {school.code === 'venezia' ? <Topbar label="Budget" href="/budget/it" variant="back" /> : null}
+    <AuthGuard>
+      <Topbar label="Budget" href={backHref} variant="back" />
       <div className="budget-page">
         <div className="shell">
           {/* ── Head ── */}
@@ -418,9 +425,9 @@ export default function BudgetClient({ school }: { school: School }) {
             <div className="b-head-left">
               <div className="logo">{IconWallet}</div>
               <div>
-                <p className="b-eyebrow">H-IS {school.name} · Budget e commesse</p>
+                <p className="b-eyebrow">{budgetLabel ? `${budgetLabel} · ${school.name}` : `H-IS ${school.name}`} · Budget e commesse</p>
                 <h1>
-                  {school.name} <em>Budget</em>
+                  {budgetLabel ?? school.name} <em>Budget</em>
                 </h1>
                 <p>
                   {school.fullName} · {school.location}
@@ -436,16 +443,16 @@ export default function BudgetClient({ school }: { school: School }) {
                 </svg>
                 {filter === 'all' ? 'Esporta Excel' : 'Esporta Excel (filtrate)'}
               </button>
-              {linesFromDb ? (
+              {linesFromDb && canEdit ? (
                 <button className="btn-quiet" onClick={openNewLine}>
                   {IconPlus}
                   Nuova commessa
                 </button>
               ) : null}
-              <button className="btn-primary" onClick={() => openForm()} disabled={!lines.length}>
+              {canEdit ? <button className="btn-primary" onClick={() => openForm()} disabled={!lines.length}>
                 {IconPlus}
                 Nuova spesa
-              </button>
+              </button> : null}
             </div>
           </div>
 
@@ -582,16 +589,16 @@ export default function BudgetClient({ school }: { school: School }) {
                       {countByCode[l.code] || 0} {countByCode[l.code] === 1 ? 'movimento' : 'movimenti'}
                     </span>
                     <div className="bline-actions">
-                      {linesFromDb ? (
+                      {linesFromDb && canEdit ? (
                         <button className="btn-quiet" onClick={() => openAdjust(l)} title="Aumenta o riduci lo stanziamento">
                           {IconScale}
                           Budget
                         </button>
                       ) : null}
-                      <button className="btn-quiet" onClick={() => openForm(l.code)}>
+                      {canEdit ? <button className="btn-quiet" onClick={() => openForm(l.code)}>
                         {IconPlus}
                         Spesa
-                      </button>
+                      </button> : null}
                     </div>
                   </div>
                 </article>
@@ -667,14 +674,14 @@ export default function BudgetClient({ school }: { school: School }) {
                           </td>
                           <td className="col-amount">− {formatEUR(e.amount)}</td>
                           <td className="col-actions">
-                            <button
+                            {canEdit ? <button
                               className="icon-btn"
                               title="Elimina spesa"
                               aria-label={'Elimina la spesa ' + e.description}
                               onClick={() => setToDelete(e)}
                             >
                               {IconTrash}
-                            </button>
+                            </button> : null}
                           </td>
                         </tr>
                       );
@@ -694,7 +701,7 @@ export default function BudgetClient({ school }: { school: School }) {
 
 
           <footer className="b-footer">
-            H-FARM International School · Budget {school.name}
+            H-FARM International School · {budgetLabel ? `${budgetLabel} · ${school.name}` : `Budget ${school.name}`}
             <span>Via Adriano Olivetti 1 - 31056 Roncade (TV)</span>
           </footer>
         </div>

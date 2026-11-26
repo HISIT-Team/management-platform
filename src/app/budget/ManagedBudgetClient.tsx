@@ -1,11 +1,28 @@
 'use client';
-import React,{useEffect,useMemo,useState} from 'react'; import {useSearchParams} from 'next/navigation'; import AuthGuard,{useAccess} from '@/components/AuthGuard'; import Topbar from '@/components/Topbar'; import {useToast} from '@/components/useToast';
-import {addManagedExpense,addManagedLine,adjustManagedLine,deleteManagedExpense,loadManagedBudget,type ManagedBudget,type ManagedExpense,type ManagedLine} from '@/lib/managedBudgets';
-const money=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'});
-function Inner({slug}:{slug:string}){const a=useAccess(), canAdmin=a.roles.some(r=>['owner','superadmin','controller'].includes(r)); const [budget,setBudget]=useState<ManagedBudget|null>(null),[lines,setLines]=useState<ManagedLine[]>([]),[expenses,setExpenses]=useState<ManagedExpense[]>([]),[error,setError]=useState(''); const [line,setLine]=useState(''),[alloc,setAlloc]=useState(''),[desc,setDesc]=useState(''),[amount,setAmount]=useState(''),[selected,setSelected]=useState(''); const {showToast,toastNode}=useToast();
- const load=()=>loadManagedBudget(slug).then(x=>{setBudget(x.budget);setLines(x.lines);setExpenses(x.expenses);}).catch(e=>setError(e.message)); useEffect(()=>{load()},[slug]);
- const spent=useMemo(()=>expenses.reduce((s,x)=>s+x.amount,0),[expenses]), total=useMemo(()=>lines.reduce((s,x)=>s+x.allocated,0),[lines]);
- async function newLine(){const n=Number(alloc);if(!line.trim()||!Number.isFinite(n)||n<0)return showToast('Inserisci una commessa e uno stanziamento validi.',true);try{await addManagedLine(budget!.id,line,n,'');setLine('');setAlloc('');await load();showToast('Commessa creata ✓')}catch(e){showToast((e as Error).message,true)}}
- async function newExpense(){const n=Number(amount);if(!selected||!desc.trim()||!Number.isFinite(n)||n<=0)return showToast('Completa commessa, descrizione e importo.',true);try{await addManagedExpense(budget!.id,selected,{description:desc,supplier:'',amount:n,spent_on:new Date().toISOString().slice(0,10),notes:''});setDesc('');setAmount('');await load();showToast('Spesa registrata ✓')}catch(e){showToast((e as Error).message,true)}}
- return <><Topbar label="Budget" href="/budget" variant="back"/><div className="budget-page"><div className="shell">{error?<div className="setup-note">{error}</div>:!budget?<div className="skeleton"/>:<><div className="b-head"><div className="b-head-left"><div><p className="b-eyebrow">Budget e commesse</p><h1>{budget.name} <em>Budget</em></h1><p>{budget.description}</p></div></div></div><section className="hero"><div className="stat-row"><div className="stat"><div className="stat-lbl">Stanziato</div><div className="stat-val">{money.format(total)}</div></div><div className="stat is-spent"><div className="stat-lbl">Speso</div><div className="stat-val">{money.format(spent)}</div></div><div className="stat is-left"><div className="stat-lbl">Disponibile</div><div className="stat-val">{money.format(total-spent)}</div></div></div></section>{canAdmin?<section className="ledger"><h2>Nuova commessa</h2><input placeholder="Nome commessa" value={line} onChange={e=>setLine(e.target.value)}/><input placeholder="Stanziamento" value={alloc} onChange={e=>setAlloc(e.target.value)}/><button className="btn-primary" onClick={newLine}>Crea</button></section>:null}<section className="ledger"><h2>Commesse</h2>{lines.map(l=>{const used=expenses.filter(e=>e.line_id===l.id).reduce((s,e)=>s+e.amount,0);return <div key={l.id} className="ledger-row"><b>{l.name}</b><span>{money.format(used)} / {money.format(l.allocated)}</span>{canAdmin?<button className="btn-quiet" onClick={async()=>{const v=window.prompt('Nuovo stanziamento',String(l.allocated));if(v!==null){await adjustManagedLine(l.id,Number(v));load()}}}>Modifica</button>:null}</div>})}</section><section className="ledger"><h2>Nuova spesa</h2><select value={selected} onChange={e=>setSelected(e.target.value)}><option value="">Scegli commessa</option>{lines.map(l=><option value={l.id} key={l.id}>{l.name}</option>)}</select><input placeholder="Descrizione" value={desc} onChange={e=>setDesc(e.target.value)}/><input placeholder="Importo" value={amount} onChange={e=>setAmount(e.target.value)}/><button className="btn-primary" onClick={newExpense}>Registra spesa</button></section><section className="ledger"><h2>Registrazioni</h2>{expenses.map(e=><div className="ledger-row" key={e.id}><span>{e.spent_on} · {e.description}</span><b>{money.format(e.amount)}</b>{canAdmin?<button className="btn-quiet" onClick={async()=>{await deleteManagedExpense(e.id);load()}}>Elimina</button>:null}</div>)}</section></>}</div>{toastNode}</div></>}
-export default function ManagedBudgetClient(){const p=useSearchParams();const slug=p.get('budget')||'';return <AuthGuard>{slug?<Inner slug={slug}/>:<div />}</AuthGuard>}
+
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useState } from 'react';
+import BudgetClient from '@/app/budget-management/BudgetClient';
+import AuthGuard from '@/components/AuthGuard';
+import Topbar from '@/components/Topbar';
+import { getSupabase } from '@/lib/supabase';
+import type { School } from '@/lib/budgets';
+
+type Budget = { id: string; name: string; description: string | null };
+type BudgetSchool = School;
+
+function Picker({ budget, schools }: { budget: Budget; schools: BudgetSchool[] }) {
+  return <><Topbar label="Budget" href="/budget" variant="back" /><div className="budget-page"><div className="shell shell--narrow"><div className="b-head"><div className="b-head-left"><div><p className="b-eyebrow">Budget e commesse</p><h1>{budget.name} <em>Budget</em></h1><p>{budget.description || 'Seleziona la scuola di cui vuoi vedere le commesse'}</p></div></div></div><div className="schools">{schools.map((s) => <Link key={s.code} className="school-card" href={`/budget/manage?budget=${budget.id}&school=${s.code}`}><div className="school-chip">{s.name.slice(0, 2).toUpperCase()}</div><div className="school-txt"><div className="school-name">{s.name}</div><div className="school-sub">{s.fullName} · {s.location}</div><div className="school-meta">Apri commesse, stanziamenti e registrazioni</div></div><div className="school-go">→</div></Link>)}</div></div></div></>;
+}
+
+function Inner() {
+  const params = useSearchParams(); const ref = params.get('budget') || ''; const requested = params.get('school');
+  const [budget, setBudget] = useState<Budget | null>(null); const [schools, setSchools] = useState<BudgetSchool[]>([]); const [error, setError] = useState('');
+  useEffect(() => { let live = true; (async () => { try { const sb = getSupabase(); const { data: b, error: e } = await sb.from('budget_catalog').select('id,name,description').eq('id', ref).single(); if (e) throw e; const { data, error } = await sb.from('budget_schools').select('code,name,full_name,location').eq('budget_id', b.id).order('school'); if (error) throw error; if (!live) return; setBudget(b); setSchools((data || []).map((x) => ({ code: x.code, name: x.name, fullName: x.full_name, location: x.location, status: 'active', lines: [] }))); } catch (err) { if (live) setError((err as Error).message); } })(); return () => { live = false; }; }, [ref]);
+  if (error) return <div className="budget-page"><div className="shell"><div className="setup-note">{error}</div></div></div>;
+  if (!budget) return null;
+  const school = schools.find((x) => x.code === requested);
+  return school ? <BudgetClient school={school} backHref={`/budget/manage?budget=${budget.id}`} budgetLabel={budget.name} /> : <Picker budget={budget} schools={schools} />;
+}
+export default function ManagedBudgetClient() { return <AuthGuard><Inner /></AuthGuard>; }
