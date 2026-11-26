@@ -409,8 +409,8 @@ export default function BudgetClient({ school }: { school: School }) {
     : 0;
 
   return (
-    <AuthGuard roles={['admin']} perm={BUDGET_PERM[school.code] ?? 'it.budget'}>
-      {school.code === 'venezia' ? <Topbar label="IT" href="/it" variant="back" /> : null}
+    <AuthGuard roles={['owner', 'superadmin', 'controller', 'admin']}>
+      {school.code === 'venezia' ? <Topbar label="Budget" href="/budget/it" variant="back" /> : null}
       <div className="budget-page">
         <div className="shell">
           {/* ── Head ── */}

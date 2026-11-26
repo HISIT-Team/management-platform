@@ -33,6 +33,7 @@ export const useShell = () => useContext(ShellContext);
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Owner',
   superadmin: 'Super Admin',
+  controller: 'Controller',
   admin: 'Admin',
   it: 'IT',
   hr: 'HR',

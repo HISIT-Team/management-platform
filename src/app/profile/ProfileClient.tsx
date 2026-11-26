@@ -20,11 +20,12 @@ import {
   updateMyName,
 } from '@/lib/profile';
 
-const ALL_BUT_GUEST = ['owner', 'superadmin', 'admin', 'it', 'hr', 'parent', 'teachers.hvi', 'teachers.hro'];
+const ALL_BUT_GUEST = ['owner', 'superadmin', 'controller', 'admin', 'it', 'hr', 'parent', 'teachers.hvi', 'teachers.hro'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Owner',
   superadmin: 'Super Admin',
+  controller: 'Controller',
   admin: 'Admin',
   it: 'IT',
   hr: 'HR',

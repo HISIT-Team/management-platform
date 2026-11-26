@@ -124,8 +124,8 @@ export default function SchoolPickerClient() {
   }
 
   return (
-    <AuthGuard roles={['admin']} perm="it.budget">
-      <Topbar label="IT" href="/it" variant="back" />
+    <AuthGuard roles={['owner', 'superadmin', 'controller', 'admin']}>
+      <Topbar label="Budget" href="/budget" variant="back" />
       <div className="budget-page">
         <div className="shell shell--narrow">
           <div className="b-head">

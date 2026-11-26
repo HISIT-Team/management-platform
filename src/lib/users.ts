@@ -23,6 +23,7 @@ export interface PlatformUser {
 export const ROLES: { value: string; label: string; color: string; soft: string }[] = [
   { value: 'owner', label: 'Owner', color: '#7A5A00', soft: '#FBF4DF' },
   { value: 'superadmin', label: 'Super Admin', color: '#5B1220', soft: '#F3E3E6' },
+  { value: 'controller', label: 'Controller', color: '#1F5A48', soft: '#E6F2EC' },
   { value: 'admin', label: 'Admin', color: '#8B1A2B', soft: '#F9EFF0' },
   { value: 'it', label: 'IT', color: '#3C5A8A', soft: '#E8EEF7' },
   { value: 'hr', label: 'HR', color: '#7A4E9A', soft: '#F1EAF7' },
