@@ -29,6 +29,10 @@ export interface Profile {
   [key: string]: unknown;
 }
 
+/** Roles retired only in this production application.  They remain in the
+ * shared database so the V1 development application continues to work. */
+const RETIRED_ROLES = new Set(['boarding', 'office', 'office.hvi', 'office.hro']);
+
 export interface SignUpArgs {
   firstName: string;
   lastName: string;
@@ -157,7 +161,10 @@ export async function ensureProfile(user: User): Promise<Profile | null> {
 
 // Normalises roles from the profile. Schema uses a single `role` text column.
 export function profileRoles(profile: Profile | null): string[] {
-  const norm = (arr: unknown[]) => arr.map((r) => String(r).trim().toLowerCase()).filter(Boolean);
+  const norm = (arr: unknown[]) => {
+    const roles = arr.map((r) => String(r).trim().toLowerCase()).filter(Boolean);
+    return roles.map((r) => (RETIRED_ROLES.has(r) ? 'guest' : r));
+  };
   if (!profile) return [];
   if (profile.role) return norm([profile.role]);
   if (Array.isArray(profile.roles)) return norm(profile.roles);

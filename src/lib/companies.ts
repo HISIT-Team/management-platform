@@ -3,9 +3,8 @@
    more than one picks the company; the menu and the dashboard then show
    only that company's sections.
      - Owner, Super Admin, Admin: all three.
-     - it, hr, boarding, office, parent: H-IS Venezia (as before).
-     - office.hvi, teachers.hvi: H-IS Vicenza.
-     - office.hro, teachers.hro: H-IS Rosà.
+     - it, hr and parent: H-IS Venezia.
+     - teachers.hvi: H-IS Vicenza; teachers.hro: H-IS Rosà.
    A permission of another company (Permessi ruoli: vi.* / ro.*) also
    opens that company. Data is protected by the permissions in the
    database; the company is only how the platform is organised.
@@ -35,9 +34,7 @@ export const companyById = (id: string | null | undefined) => COMPANIES.find((c)
 
 const ALL_COMPANIES_ROLES = ['owner', 'superadmin', 'admin'];
 const ROLE_COMPANY: Record<string, CompanyId> = {
-  'office.hvi': 'vicenza',
   'teachers.hvi': 'vicenza',
-  'office.hro': 'rosa',
   'teachers.hro': 'rosa',
 };
 
@@ -66,7 +63,7 @@ export function companyOfPath(pathname: string): CompanyId | null {
   if (p.startsWith('/budget-management/vicenza')) return 'vicenza';
   if (p.startsWith('/budget-management/rosa')) return 'rosa';
   if (
-    /^\/(it|hr|boarding|student-office|budget-management\/venezia|device-history|lost-accessories|device-drafts|task-manager|modulo-student|modulo-employee|qr|onboarding|employee-management|room-assignment|student-checkinout-hub|employee-checkinout-hub|it-registries-hub|hr-registry-hub|employee-management-hub|room-assignment-hub)(\/|$)/.test(p)
+    /^\/(it|hr|budget-management\/venezia|device-history|lost-accessories|device-drafts|task-manager|modulo-student|modulo-employee|qr|onboarding|employee-management|student-checkinout-hub|employee-checkinout-hub|it-registries-hub|hr-registry-hub|employee-management-hub)(\/|$)/.test(p)
   )
     return 'venezia';
   return null;

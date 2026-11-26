@@ -20,7 +20,7 @@ import {
   updateMyName,
 } from '@/lib/profile';
 
-const ALL_BUT_GUEST = ['owner', 'superadmin', 'admin', 'it', 'hr', 'boarding', 'office', 'parent', 'office.hvi', 'teachers.hvi', 'office.hro', 'teachers.hro'];
+const ALL_BUT_GUEST = ['owner', 'superadmin', 'admin', 'it', 'hr', 'parent', 'teachers.hvi', 'teachers.hro'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Owner',
@@ -28,12 +28,8 @@ const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
   it: 'IT',
   hr: 'HR',
-  boarding: 'Boarding',
-  office: 'Student Office',
   parent: 'Parent',
-  'office.hvi': 'Office · Vicenza',
   'teachers.hvi': 'Teachers · Vicenza',
-  'office.hro': 'Office · Rosà',
   'teachers.hro': 'Teachers · Rosà',
 };
 

@@ -22,21 +22,15 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'it.history', label: 'Storico assegnazioni', desc: 'Lettura, ricerca, export ed eliminazione dei record', group: 'IT', sub: true },
   { key: 'it.registries', label: 'Registri risposte', desc: 'Registri check-in / check-out', group: 'IT', sub: true },
   { key: 'it.lost_accessories', label: 'Accessori smarriti', desc: 'Segnalazioni di alimentatori e cavi smarriti, con storico', group: 'IT', sub: true },
-  { key: 'it.budget', label: 'Budget IT', desc: 'Commesse e spese di H-IS Venezia', group: 'IT', sub: true },
   { key: 'it.tasks', label: 'Task Manager', desc: 'Task del team IT', group: 'IT', sub: true },
   { key: 'hr', label: 'Sezione HR', desc: 'Pagina HR e voce nel menu', group: 'HR' },
   { key: 'hr.onboarding', label: 'Onboarding', desc: 'Richiesta setup nuovo dipendente', group: 'HR', sub: true },
   { key: 'hr.offboarding', label: 'Offboarding', desc: 'Uscita di un dipendente', group: 'HR', sub: true },
   { key: 'hr.registries', label: 'Registri HR', desc: 'Registri onboarding / offboarding', group: 'HR', sub: true },
-  { key: 'boarding', label: 'Sezione Boarding', desc: 'Pagina Boarding e voce nel menu', group: 'Boarding' },
-  { key: 'boarding.rooms', label: 'Assegnazione camere', desc: 'Form e registri camere', group: 'Boarding', sub: true },
-  { key: 'office', label: 'Sezione Student Office', desc: 'Pagina Student Office', group: 'Student Office' },
-  { key: 'vi.budget', label: 'Budget e commesse', desc: 'Spese, nuove commesse e stanziamenti di H-IS Vicenza', group: 'H-IS Vicenza' },
-  { key: 'ro.budget', label: 'Budget e commesse', desc: 'Spese, nuove commesse e stanziamenti di H-IS Rosà', group: 'H-IS Rosà' },
 ];
 
 /** Roles whose permissions can be edited (keep in sync with configurable_roles() in 0017). */
-export const CONFIGURABLE_ROLES = ['admin', 'it', 'hr', 'boarding', 'office', 'parent', 'office.hvi', 'teachers.hvi', 'office.hro', 'teachers.hro'];
+export const CONFIGURABLE_ROLES = ['admin', 'it', 'hr', 'parent', 'teachers.hvi', 'teachers.hro'];
 
 /** Permissions of the signed-in user's role; null when unavailable (0017 not run). */
 export async function loadMyPermissions(): Promise<string[] | null> {

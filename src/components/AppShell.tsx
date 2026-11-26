@@ -36,12 +36,8 @@ const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
   it: 'IT',
   hr: 'HR',
-  boarding: 'Boarding',
-  office: 'Student Office',
   parent: 'Parent',
-  'office.hvi': 'Office · Vicenza',
   'teachers.hvi': 'Teachers · Vicenza',
-  'office.hro': 'Office · Rosà',
   'teachers.hro': 'Teachers · Rosà',
   guest: 'Guest',
 };

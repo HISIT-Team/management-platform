@@ -4,13 +4,12 @@
    ═══════════════════════════════════════════════════════════════════ */
 import React from 'react';
 import type { HubConfig } from '@/components/HubPage';
+import { BUDGET_ENABLED } from './features';
 
 const FOOTER = {
-  boarding: 'H-FARM International School · Boarding Management',
   itPlatform: 'H-FARM International School · IT Dashboard',
   it: 'H-FARM International School · IT — Devices',
   hr: 'H-FARM International School · HR Management',
-  office: 'H-FARM International School · Student Office',
   parents: 'H-FARM International School · Parents Area',
   backend: 'H-FARM International School · Gestione Backend',
 };
@@ -187,10 +186,6 @@ const HR_ONBOARDING_XLSX =
   'https://naeeuro-my.sharepoint.com/:x:/r/personal/a_dalle-carbonare_h-farmschool_com/_layouts/15/Doc.aspx?sourcedoc=%7BF17C3436-1E19-4DA7-9501-27ED72F0CC9C%7D&file=Book%204.xlsx&action=editNew&mobileredirect=true&wdOrigin=WAC.EXCEL.HOME-BUTTON%2CAPPHOME-WEB.BANNER.NEWBLANK&wdPreviousSession=73e6f62c-415b-4aef-a817-43fd63dd4cd1&wdPreviousSessionSrc=AppHomeWeb&ct=1784034749187';
 const HR_OFFBOARDING_XLSX =
   'https://naeeuro-my.sharepoint.com/:x:/r/personal/a_dalle-carbonare_h-farmschool_com/_layouts/15/Doc.aspx?sourcedoc=%7B9838BF83-0425-4EB7-8E60-1C2FC4ADD328%7D&file=Offboarding%20dipendenti.xlsx&action=default&mobileredirect=true&wdOrigin=WAC.EXCEL.HOME-BUTTON%2CAPPHOME-WEB.FILEBROWSER.RECENT&wdPreviousSession=73e6f62c-415b-4aef-a817-43fd63dd4cd1&wdPreviousSessionSrc=AppHomeWeb&ct=1784034821388';
-const ROOM_PHOTOS_XLSX =
-  'https://naeeuro.sharepoint.com/:x:/r/sites/BoardingCameraAssignements/_layouts/15/Doc.aspx?sourcedoc=%7BC829930B-9152-4968-A22A-E69BBB3544F7%7D&file=Boarding%20Camera%20Assignements.xlsx&action=edit&mobileredirect=true&wdMsFormsCorrelationId=b8c77c60-94f0-4dcd-b1ac-13695fbaa498';
-const ROOM_PHOTOS_HISTORY =
-  'https://naeeuro.sharepoint.com/sites/BoardingCameraAssignements/Shared%20Documents/Forms/AllItems.aspx?id=%2Fsites%2FBoardingCameraAssignements%2FShared%20Documents%2FApps%2FMicrosoft%20Forms%2FBoarding%20Camera%20Assignements%2FQuestion&viewid=0f0d5dca%2D9b97%2D4f2c%2Db67a%2D4c898e3a526e&FolderCTID=0x012000278BBD1D512ACE448DC7BCC3BD138882';
 
 export const HUBS: Record<string, HubConfig> = {
   backend: {
@@ -208,27 +203,13 @@ export const HUBS: Record<string, HubConfig> = {
     ],
   },
 
-  boarding: {
-    roles: ['boarding', 'admin'],
-    perm: 'boarding',
-    topbar: { label: 'Home', href: '/', variant: 'home' },
-    titlePre: 'Boarding ',
-    titleSpan: 'Management',
-    subtitle: 'Student boarding tools and resources',
-    footer: FOOTER.boarding,
-    cards: [
-      { icon: I.house, name: 'Room Assignment', desc: 'Assign students to rooms', href: '/room-assignment-hub', perm: 'boarding.rooms' },
-      { icon: I.video, name: 'Cameras', desc: 'Live surveillance feed', href: 'https://vision.meraki.com/login', external: true, perm: 'boarding' },
-    ],
-  },
-
   it: {
     roles: ['it', 'admin'],
     perm: 'it',
     topbar: { label: 'Home', href: '/', variant: 'home' },
     titlePre: 'IT ',
     titleSpan: 'Dashboard',
-    subtitle: 'Devices, deliveries and returns, history, budget and IT team activities',
+    subtitle: 'Devices, deliveries and returns, history and IT team activities',
     footer: FOOTER.itPlatform,
     cards: [
       { icon: I.asset, name: 'Asset Manager', desc: 'Inventory and device management', href: 'https://assetmanager.h-farm.com/', external: true, perm: 'it' },
@@ -237,7 +218,7 @@ export const HUBS: Record<string, HubConfig> = {
       { icon: I.grid, name: 'Registri risposte', desc: 'Check-in / check-out records', href: '/it-registries-hub', perm: 'it.registries' },
       { icon: I.grid, name: 'Storico assegnazioni', desc: 'Storico dispositivi studenti — ricerca per email o ID', href: '/device-history', perm: 'it.history' },
       { icon: I.plug, name: 'Accessori smarriti', desc: 'Lost chargers and cables — report and history', href: '/lost-accessories', perm: 'it.lost_accessories' },
-      { icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — H-IS Venezia', href: '/budget-management/venezia', perm: 'it.budget' },
+      ...(BUDGET_ENABLED ? [{ icon: I.wallet, name: 'Budget Management', desc: 'Commesse e spese IT — H-IS Venezia', href: '/budget-management/venezia', perm: 'it.budget' }] : []),
       { icon: I.tasks, name: 'Task Manager', desc: 'Attività del team IT, gruppi di progetto e sotto-task', href: '/task-manager', perm: 'it.tasks' },
     ],
   },
@@ -255,40 +236,6 @@ export const HUBS: Record<string, HubConfig> = {
       { icon: I.grid, name: 'Registry', desc: 'Onboarding & offboarding registries', href: '/hr-registry-hub', perm: 'hr.registries' },
     ],
   },
-
-  'student-office': {
-    roles: ['office', 'admin'],
-    perm: 'office',
-    topbar: { label: 'Home', href: '/', variant: 'home' },
-    titlePre: 'Student ',
-    titleSpan: 'Office',
-    subtitle: 'Student forms and administrative requests',
-    footer: FOOTER.office,
-    cards: [
-      { icon: I.exit, name: 'Student Exit Delegation', desc: 'Authorise a delegate to pick up a student', href: '#', badge: { text: 'Coming soon', soon: true } },
-      { icon: I.bus, name: 'Bus Transfer Request', desc: 'Request a change of bus route or stop', href: '#', badge: { text: 'Coming soon', soon: true } },
-    ],
-  },
-
-
-
-  'room-assignment-hub': {
-    roles: ['boarding', 'admin'],
-    perm: 'boarding.rooms',
-    topbar: { label: 'Boarding', href: '/boarding', variant: 'back' },
-    titlePre: 'Room ',
-    titleSpan: 'Assignment',
-    subtitle: 'Manage room assignments, responses and photos',
-    footer: FOOTER.boarding,
-    cards: [
-      { icon: I.house, name: 'Assign a Room', desc: 'Fill in the room assignment form', href: '/room-assignment', perm: 'boarding.rooms' },
-      { icon: I.file, name: 'Form Responses', desc: 'View room assignment submissions', href: '#' },
-      { icon: I.grid, name: 'Photos Responses', desc: 'Open the assignments spreadsheet', href: ROOM_PHOTOS_XLSX, external: true },
-      { icon: I.photos, name: 'Photos History', desc: 'Browse uploaded room photos', href: ROOM_PHOTOS_HISTORY, external: true },
-    ],
-  },
-
-
 
   'it-registries-hub': {
     roles: ['it', 'admin'],

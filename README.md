@@ -56,7 +56,7 @@ src/
     hubs.tsx               # data-driven config for every hub page
 ```
 
-Hub pages are data-driven: instead of 12 near-identical HTML files, each route
+Hub pages are data-driven: instead of near-identical HTML files, each route
 passes a `HubConfig` (title, roles, cards) to the shared `<HubPage>` — same
 output, far less duplication.
 
@@ -76,16 +76,20 @@ The Supabase Edge Function `submit-form`, the SQL migrations and the Power
 Automate docs live in `../netlify-package/{supabase,docs}` and are reused as-is —
 the app calls the same `submit-form` function.
 
-## What's ported
+## Production scope
 
-The **entire** platform — all 23 pages — is ported 1:1:
+This production version excludes Boarding, Room Assignment and Student Office.
+Those features remain available only in the sibling `management-platform_v1`
+development version, which intentionally uses the same Supabase project.
 
-- Auth: `index`/dashboard, `login`, `signup`, `reset-password` (Turnstile).
-- 12 hub pages (data-driven via `src/lib/hubs.tsx`).
-- All forms: `onboarding`, `modulo-student` & `modulo-employee` (QR scanner via
-  `jsqr`, canvas signature pad, image compression, device photos/damage),
-  `room-assignment`, `form-richiesta` (medicine consent), `special-diet-request`
-  (conditional medical-certificate upload), `employee-management` (offboarding).
+Budget is disabled by default. It is hidden from navigation and dashboard, and
+all `/budget-management/*` pages return 404. To enable it again in this
+deployment, set `NEXT_PUBLIC_BUDGET_ENABLED=true` and redeploy.
+
+The shared database deliberately keeps the retired `boarding`, `office`,
+`office.hvi` and `office.hro` role values for V1 compatibility. In this
+production application they are treated as `guest`, are not assignable from
+user management, and have no available navigation or protected pages.
 
 Shared form building blocks live in `src/components`: `SignaturePad`,
 `QrScanner`, `DeviceCheckoutForm`, `useToast`, plus `src/lib/image.ts`.
@@ -97,10 +101,8 @@ original `HISAuth.requireAuth` roles exactly (`admin` always allowed):
 
 | Area | Roles |
 | --- | --- |
-| boarding, room-assignment(-hub), request-medicines-hub | `boarding`, `admin` |
 | it, it-registries-hub, student/employee check-in-out (+ modulo-\*) | `it`, `admin` |
 | hr, hr-registry-hub, employee-management(-hub), onboarding | `hr`, `admin` |
-| student-office | `office`, `admin` |
 | parents-hub, form-richiesta, special-diet-request | `parent`, `admin` |
 
 Role matching is case-insensitive. Unauthenticated → `/login`; wrong role → `/`.

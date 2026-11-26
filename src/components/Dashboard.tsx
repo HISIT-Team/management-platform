@@ -22,6 +22,7 @@ import {
   loadTaskSummary,
 } from '@/lib/dashboard';
 import { BUDGET_PERM } from '@/lib/budgets';
+import { BUDGET_ENABLED } from '@/lib/features';
 import { type Company, companyPickPending, dismissCompanyPick, setCompany } from '@/lib/companies';
 
 const eur0 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' } as Intl.NumberFormatOptions);
@@ -29,16 +30,12 @@ const eur0 = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR'
 const SECTION_META: Record<string, { desc: string; color: string; soft: string }> = {
   '/it': { desc: 'Consegne, restituzioni, storico e inventario', color: '#8B1A2B', soft: '#F9EFF0' },
   '/hr': { desc: 'Onboarding e offboarding del personale', color: '#6A3E8A', soft: '#F1EAF7' },
-  '/boarding': { desc: 'Assegnazione camere e telecamere', color: '#2F6E5B', soft: '#E6F2EC' },
-  '/student-office': { desc: 'Moduli e richieste degli studenti', color: '#9A5B00', soft: '#FFF3E4' },
   '/user-management': { desc: 'Utenti, ruoli e dati dei profili', color: '#3C5A8A', soft: '#E8EEF7' },
   '/audit-log': { desc: 'Chi ha cambiato cosa e quando', color: '#46636B', soft: '#E7EFF1' },
   '/security-settings': { desc: 'MFA, dispositivi ricordati, timeout', color: '#5B1220', soft: '#F3E3E6' },
   '/onboarding': { desc: 'Richiesta di setup per un nuovo dipendente', color: '#6A3E8A', soft: '#F1EAF7' },
   '/employee-management': { desc: 'Processo di uscita di un dipendente', color: '#6A3E8A', soft: '#F1EAF7' },
   '/hr-registry-hub': { desc: 'Registri di onboarding e offboarding', color: '#6A3E8A', soft: '#F1EAF7' },
-  '/budget-management/vicenza': { desc: 'Commesse, spese e stanziamenti', color: '#3C5A8A', soft: '#E8EEF7' },
-  '/budget-management/rosa': { desc: 'Commesse, spese e stanziamenti', color: '#2F6E5B', soft: '#E6F2EC' },
   '/role-permissions': { desc: 'Cosa può vedere ogni ruolo', color: '#5B1220', soft: '#F3E3E6' },
   '/device-drafts': { desc: 'Consegne preparate: apri, fai firmare, invia', color: '#3C5A8A', soft: '#E8EEF7' },
   '/lost-accessories': { desc: 'Alimentatori e cavi smarriti: segnalazioni e storico', color: '#9A5B00', soft: '#FFF3E4' },
@@ -125,12 +122,11 @@ export default function Dashboard() {
   // What the dashboard shows follows the company and the role's permissions.
   const isIt = onVe && allows(access, 'it.history', ['it', 'admin']); // device KPIs + movements
   const canStudentForm = onVe && allows(access, 'it.checkin_student', ['it', 'admin']);
-  const canBudget = allows(access, BUDGET_PERM[co] ?? 'it.budget', ['admin']); // Owner / Super Admin / Admin only (0022)
+  const canBudget = BUDGET_ENABLED && allows(access, BUDGET_PERM[co] ?? 'it.budget', ['admin']); // Owner / Super Admin / Admin only (0022)
   const canTasks = onVe && allows(access, 'it.tasks', ['admin']);
   const canOnboarding = onVe && allows(access, 'hr.onboarding', ['hr', 'admin']);
   const canOffboarding = onVe && allows(access, 'hr.offboarding', ['hr', 'admin']);
   const isHr = canOnboarding || canOffboarding;
-  const isBoarding = onVe && allows(access, 'boarding.rooms', ['boarding', 'admin']);
 
   const [stats, setStats] = useState<DeviceStats | null>(null);
   const [moves, setMoves] = useState<RecentMove[] | null>(null);
@@ -349,12 +345,6 @@ export default function Dashboard() {
                   </Link>
                 ) : null}
               </>
-            ) : null}
-            {!canStudentForm && !isIt && !isHr && isBoarding ? (
-              <Link className="ui-btn primary" href="/room-assignment">
-                <Icon name="house" size={17} />
-                Assegna una camera
-              </Link>
             ) : null}
             {!onVe && canBudget ? (
               <Link className="ui-btn primary" href={budgetHref}>

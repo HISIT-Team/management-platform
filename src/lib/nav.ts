@@ -1,3 +1,5 @@
+import { BUDGET_ENABLED } from './features';
+
 /* ═══════════════════════════════════════════════════════════════════
    Navigation of the app shell (sidebar on desktop, drawer + bottom bar
    on phones). Who sees an entry:
@@ -54,7 +56,7 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-const ALL = ['owner', 'superadmin', 'admin', 'it', 'hr', 'boarding', 'office', 'parent', 'office.hvi', 'teachers.hvi', 'office.hro', 'teachers.hro'];
+const ALL = ['owner', 'superadmin', 'admin', 'it', 'hr', 'parent', 'teachers.hvi', 'teachers.hro'];
 
 export const NAV: NavGroup[] = [
   {
@@ -78,7 +80,7 @@ export const NAV: NavGroup[] = [
           { label: 'Storico assegnazioni', href: '/device-history', icon: 'history', roles: ['it', 'admin'], perm: 'it.history' },
           { label: 'Accessori smarriti', href: '/lost-accessories', icon: 'plug', roles: ['it', 'admin'], perm: 'it.lost_accessories' },
           { label: 'Registri risposte', href: '/it-registries-hub', icon: 'registry', roles: ['it', 'admin'], perm: 'it.registries' },
-          { label: 'Budget IT', href: '/budget-management/venezia', icon: 'wallet', roles: ['admin'], perm: 'it.budget' },
+          ...(BUDGET_ENABLED ? [{ label: 'Budget IT', href: '/budget-management/venezia', icon: 'wallet' as const, roles: ['admin'], perm: 'it.budget' }] : []),
           { label: 'Task Manager', href: '/task-manager', icon: 'tasks', roles: ['admin'], perm: 'it.tasks' },
         ],
       },
@@ -96,20 +98,12 @@ export const NAV: NavGroup[] = [
           { label: 'Registri', href: '/hr-registry-hub', icon: 'registry', roles: ['hr', 'admin'], perm: 'hr.registries' },
         ],
       },
-      {
-        label: 'Boarding',
-        href: '/boarding',
-        icon: 'house',
-        roles: ['boarding', 'admin'],
-        perm: 'boarding',
-        company: 'venezia',
-        match: ['/room-assignment-hub', '/room-assignment'],
-      },
-      { label: 'Student Office', href: '/student-office', icon: 'file', roles: ['office', 'admin'], perm: 'office', company: 'venezia' },
-      // H-IS Vicenza
-      { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet', roles: ['admin'], perm: 'vi.budget', company: 'vicenza' },
-      // H-IS Rosà
-      { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet', roles: ['admin'], perm: 'ro.budget', company: 'rosa' },
+      ...(BUDGET_ENABLED
+        ? [
+            { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet' as const, roles: ['admin'], perm: 'vi.budget', company: 'vicenza' as const },
+            { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet' as const, roles: ['admin'], perm: 'ro.budget', company: 'rosa' as const },
+          ]
+        : []),
     ],
   },
   {
