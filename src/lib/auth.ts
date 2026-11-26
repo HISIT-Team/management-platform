@@ -76,8 +76,14 @@ export async function signInUser({ email, password, captchaToken }: SignInArgs) 
     password,
     options: { captchaToken },
   });
-  if (error) { void sb.rpc('audit_login_attempt', { p_email: email, p_granted: false }); throw error; }
-  void sb.rpc('audit_login_attempt', { p_email: email, p_granted: true });
+  if (error) {
+    // Await this request: otherwise navigation/reset can abort it before the
+    // browser has actually sent the audit event.
+    await sb.rpc('audit_login_attempt', { p_email: email, p_granted: false });
+    throw error;
+  }
+  // Same for a successful sign-in: the page redirects immediately afterwards.
+  await sb.rpc('audit_login_attempt', { p_email: email, p_granted: true });
   touchActivity(); // fresh login → inactivity timer starts now
   requestCompanyPick(); // first page after login: choose the company (if more than one)
   void refreshIdleLimit(); // role-based inactivity limit
