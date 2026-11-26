@@ -251,6 +251,15 @@
 .budget-page .empty h3 { font-size: 15px; font-weight: 700; margin-bottom: .35rem; }
 .budget-page .empty p { font-size: 13.5px; color: var(--b-muted); }
 
+.budget-page .budget-onboarding {
+  display: flex; align-items: center; gap: 15px; margin: 1.25rem 0 1.75rem; padding: 1.2rem 1.35rem;
+  background: var(--b-surface); border: 1px solid var(--b-line); border-radius: var(--b-radius); box-shadow: var(--b-shadow);
+}
+.budget-page .budget-onboarding .empty-icon { margin: 0; width: 44px; height: 44px; border-radius: 13px; flex: 0 0 auto; }
+.budget-page .budget-onboarding h2 { font-size: 14px; font-weight: 800; }
+.budget-page .budget-onboarding p { margin-top: 2px; font-size: 12.5px; color: var(--b-muted); max-width: 540px; }
+.budget-page .budget-onboarding .btn-primary { margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
+
 .budget-page .setup-note {
   background: #FFF7E0; border: 1px solid #EFD98F; border-radius: var(--b-radius-sm);
   padding: 1rem 1.15rem; font-size: 13px; color: #7A5800; line-height: 1.55;
@@ -446,6 +455,8 @@
   .budget-page .b-head { align-items: flex-start; }
   .budget-page .b-head .btn-primary { width: 100%; justify-content: center; }
   .budget-page .row2 { grid-template-columns: 1fr; }
+  .budget-page .budget-onboarding { align-items: flex-start; flex-wrap: wrap; }
+  .budget-page .budget-onboarding .btn-primary { width: 100%; margin-left: 0; justify-content: center; }
   .budget-page .school-card.budget-card { grid-template-columns: 54px minmax(0, 1fr); }
   .budget-page .budget-card-actions { grid-column: 1 / -1; width: 100%; margin-left: 0; justify-content: space-between; }
 }

@@ -545,6 +545,17 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
             </section>
           )}
 
+          {!loading && lines.length === 0 ? (
+            <section className="budget-onboarding">
+              <div className="empty-icon">{IconWallet}</div>
+              <div>
+                <h2>Inizia dalle commesse</h2>
+                <p>Questo budget non ha ancora stanziamenti. Crea una commessa per vedere subito ripartizione, disponibilità e movimenti.</p>
+              </div>
+              {canEdit ? <button className="btn-primary" onClick={openNewLine}>{IconPlus} Crea la prima commessa</button> : null}
+            </section>
+          ) : null}
+
           {/* ── Budget lines ── */}
           <h2 className="section-label">Commesse</h2>
           <div className="lines">
