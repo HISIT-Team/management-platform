@@ -430,6 +430,7 @@
 .budget-page .budget-tabs button { border:1px solid var(--b-line); background:var(--b-surface); color:var(--b-muted); padding:8px 13px; border-radius:999px; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
 .budget-page .budget-tabs button.active { background:var(--brand-light); border-color:var(--brand); color:var(--brand); }
 .budget-page .btn-quiet.danger { color:var(--b-danger); }
+.budget-page .trash-actions { display:flex; flex-wrap:wrap; gap:9px; margin:1rem 0 0; }
 .finance-page .finance-filters{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:1.25rem 0}.finance-page .finance-bars{margin-top:1.4rem;display:grid;gap:9px}.finance-page .finance-bars>div{display:grid;grid-template-columns:150px 1fr 115px;gap:10px;align-items:center;font-size:12px}.finance-page .finance-bars i{height:9px;border-radius:99px;background:#f2ebec;overflow:hidden}.finance-page .finance-bars b{display:block;height:100%;background:var(--brand);border-radius:99px}.finance-page .finance-bars strong{text-align:right;font-size:12px}@media(max-width:760px){.finance-page .finance-filters{grid-template-columns:1fr}.finance-page .finance-bars>div{grid-template-columns:100px 1fr}}
 .budget-page .school-card.budget-card { grid-template-columns: 54px minmax(0, 1fr) auto; }
 .budget-page .school-card .school-txt { min-width: 0; text-decoration: none; }
