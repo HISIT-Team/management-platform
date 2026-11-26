@@ -30,7 +30,7 @@ export const PERMISSIONS: PermissionDef[] = [
 ];
 
 /** Roles whose permissions can be edited (keep in sync with configurable_roles() in 0017). */
-export const CONFIGURABLE_ROLES = ['admin', 'it', 'hr', 'parent', 'teachers.hvi', 'teachers.hro'];
+export const CONFIGURABLE_ROLES = ['controller', 'admin', 'it', 'hr'];
 
 /** Permissions of the signed-in user's role; null when unavailable (0017 not run). */
 export async function loadMyPermissions(): Promise<string[] | null> {

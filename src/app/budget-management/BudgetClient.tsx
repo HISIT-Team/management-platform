@@ -127,7 +127,7 @@ const R = 64;
 const CIRC = 2 * Math.PI * R;
 
 /* ── Component ─────────────────────────────────────────────────── */
-export default function BudgetClient({ school, backHref = '/budget', budgetLabel }: { school: School; backHref?: string; budgetLabel?: string }) {
+export default function BudgetClient({ school, backHref = '/budget', budgetLabel, guarded = true }: { school: School; backHref?: string; budgetLabel?: string; guarded?: boolean }) {
   const { showToast, toastNode } = useToast();
 
   // Budget lines come from the database (migration 0018); the static ones
@@ -415,8 +415,8 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
       (Number.isFinite(previewAmount) && previewAmount > 0 ? previewAmount : 0)
     : 0;
 
-  return (
-    <AuthGuard>
+  const content = (
+    <>
       <Topbar label="Budget" href={backHref} variant="back" />
       <div className="budget-page">
         <div className="shell">
@@ -1033,7 +1033,7 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
               <div className="b-modal-foot">
                 {!countByCode[adjLine.code] ? (
                   <button className="btn-quiet adj-remove" onClick={handleArchive} disabled={busy} title="Solo per commesse senza spese">
-                    Rimuovi commessa
+                    Elimina commessa
                   </button>
                 ) : null}
                 <button className="btn-quiet" onClick={() => setAdjLine(null)} disabled={busy}>
@@ -1065,6 +1065,7 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
         .budget-page .adj-row small { color: var(--b-muted); text-align: right; }
         .budget-page .adj-remove { margin-right: auto; color: #A32D2D; }
       `}</style>
-    </AuthGuard>
+    </>
   );
+  return guarded ? <AuthGuard>{content}</AuthGuard> : content;
 }

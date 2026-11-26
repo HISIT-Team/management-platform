@@ -426,6 +426,10 @@
 
 /* Budget catalogue and its budget-specific access dialog. */
 .budget-page .budget-card-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.budget-page .budget-tabs { display:flex; gap:8px; margin:0 0 1rem; }
+.budget-page .budget-tabs button { border:1px solid var(--b-line); background:var(--b-surface); color:var(--b-muted); padding:8px 13px; border-radius:999px; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+.budget-page .budget-tabs button.active { background:var(--brand-light); border-color:var(--brand); color:var(--brand); }
+.budget-page .btn-quiet.danger { color:var(--b-danger); }
 .budget-page .school-card.budget-card { grid-template-columns: 54px minmax(0, 1fr) auto; }
 .budget-page .school-card .school-txt { min-width: 0; text-decoration: none; }
 .budget-page .school-card .school-txt .school-name { color: var(--b-ink); }

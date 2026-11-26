@@ -23,6 +23,6 @@ function Inner() {
   if (error) return <div className="budget-page"><div className="shell"><div className="setup-note">{error}</div></div></div>;
   if (!budget) return null;
   const school = schools.find((x) => x.code === requested);
-  return school ? <BudgetClient school={school} backHref={`/budget/manage?budget=${budget.id}`} budgetLabel={budget.name} /> : <Picker budget={budget} schools={schools} />;
+  return school ? <BudgetClient school={school} backHref={`/budget/manage?budget=${budget.id}`} budgetLabel={budget.name} guarded={false} /> : <Picker budget={budget} schools={schools} />;
 }
 export default function ManagedBudgetClient() { return <AuthGuard><Inner /></AuthGuard>; }

@@ -27,9 +27,6 @@ export const ROLES: { value: string; label: string; color: string; soft: string 
   { value: 'admin', label: 'Admin', color: '#8B1A2B', soft: '#F9EFF0' },
   { value: 'it', label: 'IT', color: '#3C5A8A', soft: '#E8EEF7' },
   { value: 'hr', label: 'HR', color: '#7A4E9A', soft: '#F1EAF7' },
-  { value: 'parent', label: 'Parent', color: '#46636B', soft: '#E7EFF1' },
-  { value: 'teachers.hvi', label: 'Teachers · Vicenza', color: '#3C5A8A', soft: '#EEF2F9' },
-  { value: 'teachers.hro', label: 'Teachers · Rosà', color: '#2F6E5B', soft: '#EDF5F1' },
   { value: 'guest', label: 'Guest', color: '#6E6468', soft: '#F1EDEC' },
 ];
 export const roleMeta = (r: string) =>

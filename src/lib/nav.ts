@@ -99,12 +99,6 @@ export const NAV: NavGroup[] = [
         ],
       },
       ...(BUDGET_ENABLED ? [{ label: 'Budget', href: '/budget', icon: 'wallet' as const, roles: ALL }] : []),
-      ...(BUDGET_ENABLED
-        ? [
-            { label: 'Budget', href: '/budget-management/vicenza', icon: 'wallet' as const, roles: ['admin'], perm: 'vi.budget', company: 'vicenza' as const },
-            { label: 'Budget', href: '/budget-management/rosa', icon: 'wallet' as const, roles: ['admin'], perm: 'ro.budget', company: 'rosa' as const },
-          ]
-        : []),
     ],
   },
   {

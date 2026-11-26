@@ -1,17 +1,18 @@
 import { getSupabase } from './supabase';
 
-export type ManagedBudget = { id: string; slug: string; name: string; description: string | null; legacy_it: boolean; active: boolean };
+export type BudgetLifecycle = 'active' | 'archived' | 'trash';
+export type ManagedBudget = { id: string; slug: string; name: string; description: string | null; legacy_it: boolean; active: boolean; lifecycle: BudgetLifecycle };
 export type ManagedLine = { id: string; name: string; caption: string | null; allocated: number; accent: string };
 export type ManagedExpense = { id: string; line_id: string; description: string; supplier: string | null; amount: number; spent_on: string; notes: string | null; created_at: string };
 const n = <T extends Record<string, unknown>>(x: T) => ({ ...x, allocated: Number(x.allocated ?? 0), amount: Number(x.amount ?? 0) });
 
-export async function listManagedBudgets(): Promise<ManagedBudget[]> {
-  const { data, error } = await getSupabase().from('budget_catalog').select('id,slug,name,description,legacy_it,active').eq('active', true).order('name');
+export async function listManagedBudgets(lifecycle: BudgetLifecycle = 'active'): Promise<ManagedBudget[]> {
+  const { data, error } = await getSupabase().from('budget_catalog').select('id,slug,name,description,legacy_it,active,lifecycle').eq('lifecycle', lifecycle).order('name');
   if (error) throw error; return (data ?? []) as ManagedBudget[];
 }
 export async function createManagedBudget(name: string, description: string): Promise<ManagedBudget> {
   const slug = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 39);
-  const { data, error } = await getSupabase().from('budget_catalog').insert({ name: name.trim(), description: description.trim() || null, slug }).select('id,slug,name,description,legacy_it,active').single();
+  const { data, error } = await getSupabase().from('budget_catalog').insert({ name: name.trim(), description: description.trim() || null, slug }).select('id,slug,name,description,legacy_it,active,lifecycle').single();
   if (error) throw error;
   const schools = [
     { school: 'venezia', name: 'Venezia', full_name: 'H-International School Venezia', location: 'Roncade (TV)' },
@@ -21,6 +22,10 @@ export async function createManagedBudget(name: string, description: string): Pr
   const { error: schoolsError } = await getSupabase().from('budget_schools').insert(schools);
   if (schoolsError) throw schoolsError;
   return data as ManagedBudget;
+}
+export async function setManagedBudgetLifecycle(id: string, lifecycle: BudgetLifecycle): Promise<void> {
+  const { error } = await getSupabase().rpc('budget_set_lifecycle', { p_budget: id, p_lifecycle: lifecycle });
+  if (error) throw error;
 }
 export async function loadManagedBudget(slug: string) {
   const sb = getSupabase();

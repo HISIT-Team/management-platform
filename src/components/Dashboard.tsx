@@ -165,7 +165,8 @@ export default function Dashboard() {
 
   const budAlloc = (budget ?? []).reduce((t, b) => t + b.allocated, 0);
   const budSpent = (budget ?? []).reduce((t, b) => t + b.spent, 0);
-  const budgetHref = `/budget-management/${co}`;
+  // Budget has one catalogue: individual school pages are selected inside it.
+  const budgetHref = '/budget';
 
   const budgetCard = budget ? (
     <section className="db-card">
