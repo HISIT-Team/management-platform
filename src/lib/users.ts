@@ -67,6 +67,7 @@ export interface AuditEntry {
 }
 
 export const AUDIT_ACTIONS: Record<string, string> = {
+  login_attempt: 'Tentativo di accesso',
   role_changed: 'Ruolo cambiato',
   user_edited: 'Utente modificato',
   user_deleted: 'Utente eliminato',

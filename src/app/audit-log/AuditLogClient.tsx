@@ -25,6 +25,7 @@ const IconSearch = (
 );
 
 const ACTION_TONE: Record<string, [string, string]> = {
+  login_attempt: ['#3C5A8A', '#E8EEF7'],
   role_changed: ['#3C5A8A', '#E8EEF7'],
   user_edited: ['#6E6468', '#F1EDEC'],
   user_deleted: ['#A32D2D', '#FBEAEA'],
@@ -42,6 +43,8 @@ const role = (v: unknown) => (typeof v === 'string' ? roleMeta(v).label : '—')
 function describe(e: AuditEntry): string {
   const d = e.details || {};
   switch (e.action) {
+    case 'login_attempt':
+      return e.details?.result === 'granted' ? 'Accesso alla piattaforma consentito' : 'Accesso alla piattaforma negato';
     case 'role_changed':
       return `${role(d.from)} → ${role(d.to)}`;
     case 'user_edited': {
@@ -124,6 +127,7 @@ export default function AuditLogClient() {
           { header: 'Azione', width: 26, value: (e) => AUDIT_ACTIONS[e.action] ?? e.action },
           { header: 'Eseguita da', width: 32, value: (e) => e.actor_email ?? '' },
           { header: 'Oggetto', width: 32, value: (e) => e.target_label ?? e.target_id ?? '' },
+          { header: 'Risultato', width: 18, value: (e) => (e.details?.result === 'granted' ? 'Access granted' : e.details?.result === 'denied' ? 'Access denied' : '') },
           { header: 'Dettaglio', width: 60, value: (e) => describe(e) },
         ],
         visible,
@@ -210,7 +214,7 @@ export default function AuditLogClient() {
                       <th>Data</th>
                       <th>Azione</th>
                       <th>Su</th>
-                      <th>Dettaglio</th>
+                      <th>Risultato</th><th>Dettaglio</th>
                       <th>Eseguita da</th>
                     </tr>
                   </thead>
@@ -226,7 +230,7 @@ export default function AuditLogClient() {
                             </span>
                           </td>
                           <td>{r.target_label || '—'}</td>
-                          <td className="al-detail">{describe(r)}</td>
+                          <td><span className={'audit-result ' + (r.details?.result === 'granted' ? 'granted' : r.details?.result === 'denied' ? 'denied' : '')}>{r.details?.result === 'granted' ? 'Access granted' : r.details?.result === 'denied' ? 'Access denied' : '—'}</span></td><td className="al-detail">{describe(r)}</td>
                           <td className="al-actor">{r.actor_email || '—'}</td>
                         </tr>
                       );
@@ -251,6 +255,7 @@ export default function AuditLogClient() {
         .al-page tbody td { white-space: nowrap; }
         .al-page td.al-detail { white-space: normal; min-width: 260px; color: var(--b-muted); font-size: 13px; }
         .al-page td.al-actor { color: var(--b-muted); font-size: 13px; }
+        .al-page .audit-result { font-size:11px; font-weight:800; white-space:nowrap; }.al-page .audit-result.granted { color:#2F6E5B; }.al-page .audit-result.denied { color:#A32D2D; }
       `}</style>
     </AuthGuard>
   );
