@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import AuthGuard, { useAccess } from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
 import { useToast } from '@/components/useToast';
-import { createManagedBudget, listManagedBudgets, setManagedBudgetLifecycle, type BudgetLifecycle, type ManagedBudget } from '@/lib/managedBudgets';
+import { createManagedBudget, deleteManagedBudgetPermanently, listManagedBudgets, setManagedBudgetLifecycle, type BudgetLifecycle, type ManagedBudget } from '@/lib/managedBudgets';
 import { getSupabase } from '@/lib/supabase';
 
 type User = { id: string; email: string; first_name: string | null; last_name: string | null };
@@ -78,6 +78,12 @@ function Inner() {
     if (!window.confirm(`Vuoi ${action} il budget “${budget.name}”?`)) return;
     setBusy(true);
     try { await setManagedBudgetLifecycle(budget.id, next); await loadBudgets(); showToast(`Budget ${next === 'trash' ? 'spostato nel Cestino' : next === 'archived' ? 'archiviato' : 'ripristinato'} ✓`); }
+    catch (error) { showToast((error as Error).message, true); } finally { setBusy(false); }
+  }
+  async function deleteBudget(budget: ManagedBudget) {
+    if (!window.confirm(`Eliminare definitivamente “${budget.name}”? Questa operazione non può essere annullata.`)) return;
+    setBusy(true);
+    try { await deleteManagedBudgetPermanently(budget.id); await loadBudgets(); showToast('Budget eliminato definitivamente'); }
     catch (error) { showToast((error as Error).message, true); } finally { setBusy(false); }
   }
 

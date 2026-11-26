@@ -98,7 +98,7 @@ export const NAV: NavGroup[] = [
           { label: 'Registri', href: '/hr-registry-hub', icon: 'registry', roles: ['hr', 'admin'], perm: 'hr.registries' },
         ],
       },
-      ...(BUDGET_ENABLED ? [{ label: 'Budget', href: '/budget', icon: 'wallet' as const, roles: ALL }] : []),
+      ...(BUDGET_ENABLED ? [{ label: 'Budget', href: '/budget', icon: 'wallet' as const, roles: ALL, children: [{ label: 'Overview', href: '/budget/overview', icon: 'wallet' as const, roles: ['owner','superadmin','controller'] }] }] : []),
     ],
   },
   {

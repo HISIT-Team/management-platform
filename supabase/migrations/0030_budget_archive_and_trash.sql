@@ -15,3 +15,13 @@ begin
 end;
 $$;
 grant execute on function public.budget_set_lifecycle(uuid,text) to authenticated;
+
+create or replace function public.budget_delete_permanently(p_budget uuid)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+  if not public.is_budget_admin() then raise exception 'Budget administrator required' using errcode='42501'; end if;
+  delete from public.budget_catalog where id=p_budget and lifecycle='trash' and not legacy_it;
+  if not found then raise exception 'Only a trashed budget can be permanently deleted' using errcode='P0002'; end if;
+end;
+$$;
+grant execute on function public.budget_delete_permanently(uuid) to authenticated;

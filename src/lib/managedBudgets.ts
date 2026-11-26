@@ -27,6 +27,10 @@ export async function setManagedBudgetLifecycle(id: string, lifecycle: BudgetLif
   const { error } = await getSupabase().rpc('budget_set_lifecycle', { p_budget: id, p_lifecycle: lifecycle });
   if (error) throw error;
 }
+export async function deleteManagedBudgetPermanently(id: string): Promise<void> {
+  const { error } = await getSupabase().rpc('budget_delete_permanently', { p_budget: id });
+  if (error) throw error;
+}
 export async function loadManagedBudget(slug: string) {
   const sb = getSupabase();
   const { data: budget, error } = await sb.from('budget_catalog').select('id,slug,name,description,legacy_it,active').eq('slug', slug).single();
