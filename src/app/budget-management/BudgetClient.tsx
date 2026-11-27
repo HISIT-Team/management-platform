@@ -973,13 +973,19 @@ function openNewLine() {
     </small>
   </div>
 
-  <div className="field">
-    <label htmlFor="nl-name">
-      Nome <span className="req">*</span>
-    </label> Nome <span className="req">*</span>
-                  </label>
-                  <input id="nl-name" type="text" maxLength={120} placeholder="es. Arredi aule 26/27" value={nlName} onChange={(e) => setNlName(e.target.value)} />
-                </div>
+<div className="field">
+  <label htmlFor="nl-name">
+    Nome <span className="req">*</span>
+  </label>
+  <input
+    id="nl-name"
+    type="text"
+    maxLength={120}
+    placeholder="es. Arredi aule 26/27"
+    value={nlName}
+    onChange={(e) => setNlName(e.target.value)}
+  />
+</div>
                 <div className="field">
                   <label htmlFor="nl-caption">Descrizione breve</label>
                   <input id="nl-caption" type="text" maxLength={160} placeholder="es. Banchi, sedie e lavagne" value={nlCaption} onChange={(e) => setNlCaption(e.target.value)} />
