@@ -8,3 +8,14 @@ drop trigger if exists hr_onboarding_task_trigger on public.hr_onboardings; crea
 create or replace function public.hr_complete_children() returns trigger language plpgsql as $$ begin if new.status='completed' then update public.hr_subtasks set status='completed' where task_id=new.id; end if; return new; end $$;
 drop trigger if exists hr_complete_children_trigger on public.hr_tasks; create trigger hr_complete_children_trigger after update of status on public.hr_tasks for each row execute function public.hr_complete_children();
 create table if not exists public.hr_badge_requests (id uuid primary key default gen_random_uuid(), created_at timestamptz not null default now(), first_name text not null, last_name text not null, photo_path text not null, created_by uuid default auth.uid()); alter table public.hr_badge_requests enable row level security; drop policy if exists hr_badge_requests_rw on public.hr_badge_requests; create policy hr_badge_requests_rw on public.hr_badge_requests for all to authenticated using(public.has_permission('hr')) with check(public.has_permission('hr'));
+
+create policy "hr_onboardings insert hr and admins"
+on public.hr_onboardings
+for insert to authenticated
+with check (
+  exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and lower(trim(p.role)) in ('hr', 'admin', 'superadmin', 'owner')
+  )
+);
