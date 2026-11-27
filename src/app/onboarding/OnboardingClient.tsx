@@ -1,11 +1,41 @@
 'use client';
 /* New employee onboarding request form. Port of onboarding.html.
-   Submitted through the 'submit-form' Edge Function (form_type 'onboarding'). */
+   Submitted through the 'submit-form' Edge Function (form_type 'onboarding').
+   Badge photo: archived in Supabase Storage (bucket 'hr-badges') and also sent
+   to the webhook as base64 (badge_photo_base64 / badge_photo_mime) so Power
+   Automate can save it in SharePoint → Foto Badge. */
 import React, { useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import { submitForm } from '@/lib/auth';
 import { getSupabase } from '@/lib/supabase';
+
+// Compresses the badge photo to max 1200px JPEG and returns plain base64 (no data: prefix).
+function imageToBase64Jpeg(file: File, maxSize = 1200, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        return reject(new Error('Canvas not supported'));
+      }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read the badge photo'));
+    };
+    img.src = url;
+  });
+}
 
 export default function OnboardingClient() {
   const [firstName, setFirstName] = useState('');
@@ -29,6 +59,8 @@ export default function OnboardingClient() {
   const [notes, setNotes] = useState('');
   const [badgePhotoAvailable, setBadgePhotoAvailable] = useState('No');
   const [badgePhoto, setBadgePhoto] = useState<File | null>(null);
+  // Changing this key remounts the file input, so it is really emptied after a reset.
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; err: boolean; show: boolean }>({ msg: '', err: false, show: false });
@@ -63,6 +95,9 @@ export default function OnboardingClient() {
     setReferent('');
     setMailingList('');
     setNotes('');
+    setBadgePhotoAvailable('No');
+    setBadgePhoto(null);
+    setFileInputKey((k) => k + 1);
   }
 
   async function handleSubmit() {
@@ -99,15 +134,40 @@ export default function OnboardingClient() {
 
     setBusy(true);
     try {
+      const withPhoto = badgePhotoAvailable === 'Yes' && !!badgePhoto;
+
+      // 1. Convert the photo first: if the file is unreadable, stop before writing anything.
+      const badge_photo_base64 = withPhoto && badgePhoto ? await imageToBase64Jpeg(badgePhoto) : '';
+
+      // 2. Archive copy in Supabase Storage
       let badgePhotoPath = '';
-      if (badgePhotoAvailable === 'Yes' && badgePhoto) {
+      if (withPhoto && badgePhoto) {
         badgePhotoPath = `${Date.now()}-${badgePhoto.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
         const { error } = await getSupabase().storage.from('hr-badges').upload(badgePhotoPath, badgePhoto);
         if (error) throw error;
       }
-      const { error: historyError } = await getSupabase().from('hr_onboardings').insert({ first_name:firstName.trim(),last_name:lastName.trim(),personal_email:email.trim(),job_role:role.trim(),start_date:startDate,company,location,details:payload,badge_photo_path:badgePhotoPath||null });
+
+      // 3. History row: payload WITHOUT the base64 (keeps the DB light)
+      const { error: historyError } = await getSupabase().from('hr_onboardings').insert({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        personal_email: email.trim(),
+        job_role: role.trim(),
+        start_date: startDate,
+        company,
+        location,
+        details: payload,
+        badge_photo_path: badgePhotoPath || null,
+      });
       if (historyError) throw historyError;
-      await submitForm('onboarding', payload);
+
+      // 4. Webhook: same data + the photo as base64 for Power Automate
+      await submitForm('onboarding', {
+        ...payload,
+        badge_photo_base64,
+        badge_photo_mime: badge_photo_base64 ? 'image/jpeg' : '',
+      });
+
       showToast('Onboarding request submitted ✓');
       resetForm();
     } catch (e) {
@@ -308,14 +368,42 @@ export default function OnboardingClient() {
             </div>
           </div>
 
-          <div className="section"><div className="section-title">Badge request</div><div className="field"><label>Is the badge photo already available?</label><select value={badgePhotoAvailable} onChange={(e)=>setBadgePhotoAvailable(e.target.value)}><option>No</option><option>Yes</option></select></div>{badgePhotoAvailable === 'Yes' ? <div className="field"><label>Badge photo</label><label className="file-picker"><input type="file" accept="image/*" onChange={(e)=>setBadgePhoto(e.target.files?.[0]??null)} /><span className="file-picker-button">Choose photo</span><span className="file-picker-name">{badgePhoto?.name ?? 'No file selected'}</span></label></div> : null}</div>
+          {/* BADGE */}
+          <div className="section">
+            <div className="section-title">Badge request</div>
+            <div className="field">
+              <label>Is the badge photo already available?</label>
+              <select
+                value={badgePhotoAvailable}
+                onChange={(e) => {
+                  setBadgePhotoAvailable(e.target.value);
+                  if (e.target.value !== 'Yes') setBadgePhoto(null);
+                }}
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </div>
+            {badgePhotoAvailable === 'Yes' ? (
+              <div className="field">
+                <label>
+                  Badge photo <span className="req">*</span>
+                </label>
+                <label className="file-picker">
+                  <input key={fileInputKey} type="file" accept="image/*" onChange={(e) => setBadgePhoto(e.target.files?.[0] ?? null)} />
+                  <span className="file-picker-button">Choose photo</span>
+                  <span className="file-picker-name">{badgePhoto?.name ?? 'No file selected'}</span>
+                </label>
+              </div>
+            ) : null}
+          </div>
 
           <button className="submit-btn" onClick={handleSubmit} disabled={busy}>
             <svg viewBox="0 0 24 24">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>
-            Submit onboarding request
+            {busy ? 'Submitting…' : 'Submit onboarding request'}
           </button>
         </div>
 
