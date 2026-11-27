@@ -1,9 +1,9 @@
 'use client';
 /* New employee onboarding request form. Port of onboarding.html.
    Submitted through the 'submit-form' Edge Function (form_type 'onboarding').
-   Badge photo: archived in Supabase Storage (bucket 'hr-badges') and also sent
-   to the webhook as base64 (badge_photo_base64 / badge_photo_mime) so Power
-   Automate can save it in SharePoint → Foto Badge. */
+   Badge photo: NOT stored in Supabase. It is sent only to the webhook as base64
+   (badge_photo_base64 / badge_photo_mime) so Power Automate can save it in
+   SharePoint → Foto Badge. */
 import React, { useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
@@ -133,7 +133,7 @@ export default function OnboardingClient() {
     };
 
     setBusy(true);
-        try {
+    try {
       const withPhoto = badgePhotoAvailable === 'Yes' && !!badgePhoto;
 
       // Photo is NOT stored in Supabase: it only goes to Power Automate → SharePoint.
@@ -153,32 +153,6 @@ export default function OnboardingClient() {
       if (historyError) throw historyError;
 
       // Webhook: same data + the photo as base64 for Power Automate
-      await submitForm('onboarding', {
-        ...payload,
-        badge_photo_base64,
-        badge_photo_mime: badge_photo_base64 ? 'image/jpeg' : '',
-      });
-
-      showToast('Onboarding request submitted ✓');
-      resetForm();
-    } catch (e) {
-      showToast('Error: ' + (e as Error).message, true);
-    }
-
-      // 3. History row: payload WITHOUT the base64 (keeps the DB light)
-      const { error: historyError } = await getSupabase().from('hr_onboardings').insert({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        personal_email: email.trim(),
-        job_role: role.trim(),
-        start_date: startDate,
-        company,
-        location,
-        details: payload,
-      });
-      if (historyError) throw historyError;
-
-      // 4. Webhook: same data + the photo as base64 for Power Automate
       await submitForm('onboarding', {
         ...payload,
         badge_photo_base64,
