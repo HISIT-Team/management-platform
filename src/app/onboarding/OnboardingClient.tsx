@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import { submitForm } from '@/lib/auth';
+import { getSupabase } from '@/lib/supabase';
 
 export default function OnboardingClient() {
   const [firstName, setFirstName] = useState('');
@@ -26,6 +27,8 @@ export default function OnboardingClient() {
   const [referent, setReferent] = useState('');
   const [mailingList, setMailingList] = useState('');
   const [notes, setNotes] = useState('');
+  const [badgePhotoAvailable, setBadgePhotoAvailable] = useState('No');
+  const [badgePhoto, setBadgePhoto] = useState<File | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ msg: string; err: boolean; show: boolean }>({ msg: '', err: false, show: false });
@@ -69,6 +72,7 @@ export default function OnboardingClient() {
     if (!startDate) return showToast('Please select a start date.', true);
     if (!company) return showToast('Please select a company.', true);
     if (!location) return showToast('Please select a location.', true);
+    if (badgePhotoAvailable === 'Yes' && !badgePhoto) return showToast('Please upload the badge photo.', true);
 
     const payload = {
       form_type: 'onboarding',
@@ -90,10 +94,19 @@ export default function OnboardingClient() {
       referent: referent.trim(),
       mailing_list: mailingList.trim(),
       notes: notes.trim(),
+      badge_photo_available: badgePhotoAvailable,
     };
 
     setBusy(true);
     try {
+      let badgePhotoPath = '';
+      if (badgePhotoAvailable === 'Yes' && badgePhoto) {
+        badgePhotoPath = `${Date.now()}-${badgePhoto.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
+        const { error } = await getSupabase().storage.from('hr-badges').upload(badgePhotoPath, badgePhoto);
+        if (error) throw error;
+      }
+      const { error: historyError } = await getSupabase().from('hr_onboardings').insert({ first_name:firstName.trim(),last_name:lastName.trim(),personal_email:email.trim(),job_role:role.trim(),start_date:startDate,company,location,details:payload,badge_photo_path:badgePhotoPath||null });
+      if (historyError) throw historyError;
       await submitForm('onboarding', payload);
       showToast('Onboarding request submitted ✓');
       resetForm();
@@ -294,6 +307,8 @@ export default function OnboardingClient() {
               <textarea placeholder="Anything else worth noting…" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
           </div>
+
+          <div className="section"><div className="section-title">Badge request</div><div className="field"><label>Is the badge photo already available?</label><select value={badgePhotoAvailable} onChange={(e)=>setBadgePhotoAvailable(e.target.value)}><option>No</option><option>Yes</option></select></div>{badgePhotoAvailable === 'Yes' ? <div className="field"><label>Badge photo</label><input type="file" accept="image/*" onChange={(e)=>setBadgePhoto(e.target.files?.[0]??null)} /></div> : null}</div>
 
           <button className="submit-btn" onClick={handleSubmit} disabled={busy}>
             <svg viewBox="0 0 24 24">

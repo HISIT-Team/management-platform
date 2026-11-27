@@ -1,10 +1,11 @@
 'use client';
 /* Employee offboarding form. Port of employee-management.html (form_type 'offboarding'). */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 import { useToast } from '@/components/useToast';
 import { submitForm } from '@/lib/auth';
+import { getSupabase } from '@/lib/supabase';
 
 const COMPANIES = ['H-INTERNATIONAL SCHOOL SRL', 'H-INTERNATIONAL SCHOOL VICENZA SRL', 'H-INTERNATIONAL SCHOOL ROSÀ SRL'];
 
@@ -18,6 +19,12 @@ export default function OffboardingClient() {
   const [drive, setDrive] = useState('');
   const [autoReply, setAutoReply] = useState('');
   const [busy, setBusy] = useState(false);
+  const [people, setPeople] = useState<{id:string;first_name:string;last_name:string;personal_email:string;company:string}[]>([]);
+  const [search, setSearch] = useState('');
+  const [onboardingId, setOnboardingId] = useState('');
+  useEffect(()=>{getSupabase().from('hr_onboardings').select('id,first_name,last_name,personal_email,company').order('created_at',{ascending:false}).then(({data})=>setPeople((data||[]) as typeof people))},[]);
+  const matches=people.filter(p=>`${p.first_name} ${p.last_name} ${p.personal_email}`.toLowerCase().includes(search.toLowerCase())).slice(0,8);
+  function selectPerson(p: typeof people[number]){setOnboardingId(p.id);setFirstName(p.first_name);setLastName(p.last_name);setEmail(p.personal_email);setCompany(p.company);setSearch(`${p.first_name} ${p.last_name}`)}
 
   async function handleSubmit() {
     if (!firstName.trim() || !lastName.trim()) return showToast('Please enter first and last name.', true);
@@ -38,6 +45,7 @@ export default function OffboardingClient() {
         drive_data: drive.trim(),
         auto_reply_email: autoReply.trim(),
       });
+      await getSupabase().from('hr_offboardings').insert({onboarding_id:onboardingId||null,first_name:firstName.trim(),last_name:lastName.trim(),email:email.trim(),end_date:endDate,company,details:{drive_data:drive.trim(),auto_reply_email:autoReply.trim()}});
       showToast('Form submitted successfully ✓');
       setFirstName('');
       setLastName('');
@@ -85,6 +93,7 @@ export default function OffboardingClient() {
               </svg>
               Employee details
             </div>
+            <div className="field"><label>Search employee from onboarding history</label><input type="text" placeholder="Start typing a name…" value={search} onChange={e=>setSearch(e.target.value)} />{search ? <div className="conditional">{matches.map(p=><button type="button" key={p.id} className="btn-quiet" onClick={()=>selectPerson(p)}>{p.first_name} {p.last_name} · {p.personal_email}</button>)}</div> : null}</div>
             <div className="row2">
               <div className="field">
                 <label>First name</label>

@@ -262,8 +262,8 @@ export const HUBS: Record<string, HubConfig> = {
     subtitle: 'Onboarding and offboarding registries',
     footer: FOOTER.hr,
     cards: [
-      { icon: I.grid, name: 'Registro Onboarding', desc: 'Onboarding spreadsheet', href: HR_ONBOARDING_XLSX, external: true },
-      { icon: I.grid, name: 'Registro Offboarding', desc: 'Offboarding spreadsheet', href: HR_OFFBOARDING_XLSX, external: true },
+      { icon: I.grid, name: 'Onboarding History', desc: 'Onboarding spreadsheet', href: '/hr-history/onboarding' },
+      { icon: I.grid, name: 'Offboarding History', desc: 'Offboarding spreadsheet', href: '/hr-history/offboarding' },
     ],
   },
 
@@ -278,6 +278,8 @@ export const HUBS: Record<string, HubConfig> = {
     cards: [
       { icon: I.userPlus, name: 'Onboarding', desc: 'New employee setup request', href: '/onboarding', perm: 'hr.onboarding' },
       { icon: I.userMinus, name: 'Offboarding', desc: 'Departing employee process', href: '/employee-management', perm: 'hr.offboarding' },
+      { icon: I.grid, name: 'Task Manager', desc: 'Onboarding and offboarding tasks', href: '/hr-task-manager', perm: 'hr' },
+      { icon: I.userPlus, name: 'New Badge', desc: 'Submit a badge photo request', href: '/new-badge', perm: 'hr' },
     ],
   },
 

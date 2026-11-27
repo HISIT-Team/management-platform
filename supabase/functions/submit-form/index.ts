@@ -60,6 +60,7 @@ const ADMIN_ROLES = ['admin', 'superadmin', 'owner']
 const FORMS: Record<string, { roles: string[]; perm: string; webhookEnv: string }> = {
   onboarding:  { roles: ['hr'], perm: 'hr.onboarding',  webhookEnv: 'WEBHOOK_ONBOARDING' },
   offboarding: { roles: ['hr'], perm: 'hr.offboarding', webhookEnv: 'WEBHOOK_OFFBOARDING' },
+  new_badge: { roles: ['hr', 'admin', 'superadmin', 'owner'], perm: 'hr', webhookEnv: 'WEBHOOK_NEW_BADGE' },
   // Check-in e check-out hanno webhook distinti, ma stesso ruolo: la scelta
   // del form_type da parte del client non attraversa nessun confine di permessi.
   student_checkin:   { roles: ['it'], perm: 'it.checkin_student',  webhookEnv: 'WEBHOOK_STUDENT_CHECKIN' },
@@ -189,7 +190,7 @@ Deno.serve(async (req) => {
 
     // 5c. Permission of the role for this form (migration 0017); before 0017: role list.
     const permRes = await asUser.rpc('has_permission', { p_perm: conf.perm })
-    const allowed = !permRes.error ? permRes.data === true : conf.roles.includes(role) || ADMIN_ROLES.includes(role)
+    const allowed = conf.roles.includes(role) || ADMIN_ROLES.includes(role) || (!permRes.error && permRes.data === true)
     if (!allowed) return json(req, { error: 'Forbidden: your role cannot submit this form' }, 403)
 
     // 6. Forward to the hidden webhook, stamping who submitted it (server-side, trustworthy).
