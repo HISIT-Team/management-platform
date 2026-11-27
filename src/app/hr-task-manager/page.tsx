@@ -26,6 +26,46 @@ function StatusSelect({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
+/* Progress bar with its own track: the fill width is a percentage of the TRACK only
+   (not of the whole row with the label), so 2/4 = exactly half and 4/4 never overflows. */
+function ProgressBar({ completed, total }: { completed: number; total: number }) {
+  const progress = total ? Math.min(100, Math.max(0, (completed / total) * 100)) : 0;
+  const done = total > 0 && completed >= total;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '18px 0 6px' }}>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress)}
+        aria-label={`${completed} di ${total} attività completate`}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          height: 8,
+          borderRadius: 999,
+          background: '#EFEAE8',
+          overflow: 'hidden',
+          position: 'relative',
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            height: '100%',
+            borderRadius: 999,
+            background: done ? '#3B7A2E' : 'linear-gradient(90deg, #8B1A2B, #C9A43A)',
+            transition: 'width .35s ease',
+          }}
+        />
+      </div>
+      <span style={{ flexShrink: 0, fontSize: 14, fontWeight: 600, color: done ? '#3B7A2E' : '#6B6360', whiteSpace: 'nowrap' }}>
+        {completed}/{total} completate
+      </span>
+    </div>
+  );
+}
+
 function Inner() {
   const [workflow, setWorkflow] = useState<'onboarding' | 'offboarding'>('onboarding');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -94,7 +134,6 @@ function Inner() {
             {visibleTasks.map((task) => {
               const taskSubtasks = subtasks.filter((subtask) => subtask.task_id === task.id);
               const completed = taskSubtasks.filter((subtask) => subtask.status === 'completed').length;
-              const progress = taskSubtasks.length ? Math.round((completed / taskSubtasks.length) * 100) : 0;
               return (
                 <article className="hr-task-card" key={task.id}>
                   <div className="hr-task-card-head">
@@ -105,7 +144,7 @@ function Inner() {
                     </div>
                     <StatusSelect value={task.status} onChange={(status) => void updateStatus('hr_tasks', task.id, status)} />
                   </div>
-                  <div className="hr-task-progress"><i style={{ width: `${progress}%` }} /><span>{completed}/{taskSubtasks.length} completate</span></div>
+                  <ProgressBar completed={completed} total={taskSubtasks.length} />
                   <div className="hr-subtask-list">
                     {taskSubtasks.map((subtask) => (
                       <div className="hr-subtask" key={subtask.id}>
