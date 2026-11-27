@@ -133,19 +133,37 @@ export default function OnboardingClient() {
     };
 
     setBusy(true);
-    try {
+        try {
       const withPhoto = badgePhotoAvailable === 'Yes' && !!badgePhoto;
 
-      // 1. Convert the photo first: if the file is unreadable, stop before writing anything.
+      // Photo is NOT stored in Supabase: it only goes to Power Automate → SharePoint.
       const badge_photo_base64 = withPhoto && badgePhoto ? await imageToBase64Jpeg(badgePhoto) : '';
 
-      // 2. Archive copy in Supabase Storage
-      let badgePhotoPath = '';
-      if (withPhoto && badgePhoto) {
-        badgePhotoPath = `${Date.now()}-${badgePhoto.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
-        const { error } = await getSupabase().storage.from('hr-badges').upload(badgePhotoPath, badgePhoto);
-        if (error) throw error;
-      }
+      // History row (no photo)
+      const { error: historyError } = await getSupabase().from('hr_onboardings').insert({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        personal_email: email.trim(),
+        job_role: role.trim(),
+        start_date: startDate,
+        company,
+        location,
+        details: payload,
+      });
+      if (historyError) throw historyError;
+
+      // Webhook: same data + the photo as base64 for Power Automate
+      await submitForm('onboarding', {
+        ...payload,
+        badge_photo_base64,
+        badge_photo_mime: badge_photo_base64 ? 'image/jpeg' : '',
+      });
+
+      showToast('Onboarding request submitted ✓');
+      resetForm();
+    } catch (e) {
+      showToast('Error: ' + (e as Error).message, true);
+    }
 
       // 3. History row: payload WITHOUT the base64 (keeps the DB light)
       const { error: historyError } = await getSupabase().from('hr_onboardings').insert({
@@ -157,7 +175,6 @@ export default function OnboardingClient() {
         company,
         location,
         details: payload,
-        badge_photo_path: badgePhotoPath || null,
       });
       if (historyError) throw historyError;
 
