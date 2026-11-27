@@ -3,7 +3,8 @@
    Submitted through the 'submit-form' Edge Function (form_type 'new_badge').
    Badge photo: NOT stored in Supabase. It is sent only to the webhook as base64
    (badge_photo_base64 / badge_photo_mime) so Power Automate can save it in
-   SharePoint → Foto Badge. */
+   SharePoint → Foto Badge.
+   Header uses the same classes as the HR Task Manager (hr-task-header). */
 import React, { useState } from 'react';
 import AuthGuard from '@/components/AuthGuard';
 import Topbar from '@/components/Topbar';
@@ -98,21 +99,14 @@ function Inner() {
       <Topbar label="HR" href="/hr" variant="back" />
       <div className="form-page">
         <div className="form-wrap">
-          <div className="page-header">
-            <div className="logo">
-              <svg viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <circle cx="9" cy="11" r="2.5" />
-                <path d="M5.5 17a3.5 3.5 0 0 1 7 0" />
-                <line x1="15" y1="10" x2="18" y2="10" />
-                <line x1="15" y1="14" x2="18" y2="14" />
-              </svg>
-            </div>
+          {/* HEADER — same style as Task Manager */}
+          <header className="hr-task-header">
             <div>
-              <h1>New Badge</h1>
-              <p>Badge photo request</p>
+              <p className="hr-task-eyebrow">HR request</p>
+              <h1>New <em>Badge</em></h1>
+              <p>Request a new employee badge by uploading the photo.</p>
             </div>
-          </div>
+          </header>
 
           {/* EMPLOYEE */}
           <div className="section">
