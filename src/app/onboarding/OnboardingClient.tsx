@@ -308,7 +308,7 @@ export default function OnboardingClient() {
             </div>
           </div>
 
-          <div className="section"><div className="section-title">Badge request</div><div className="field"><label>Is the badge photo already available?</label><select value={badgePhotoAvailable} onChange={(e)=>setBadgePhotoAvailable(e.target.value)}><option>No</option><option>Yes</option></select></div>{badgePhotoAvailable === 'Yes' ? <div className="field"><label>Badge photo</label><input type="file" accept="image/*" onChange={(e)=>setBadgePhoto(e.target.files?.[0]??null)} /></div> : null}</div>
+          <div className="section"><div className="section-title">Badge request</div><div className="field"><label>Is the badge photo already available?</label><select value={badgePhotoAvailable} onChange={(e)=>setBadgePhotoAvailable(e.target.value)}><option>No</option><option>Yes</option></select></div>{badgePhotoAvailable === 'Yes' ? <div className="field"><label>Badge photo</label><label className="file-picker"><input type="file" accept="image/*" onChange={(e)=>setBadgePhoto(e.target.files?.[0]??null)} /><span className="file-picker-button">Choose photo</span><span className="file-picker-name">{badgePhoto?.name ?? 'No file selected'}</span></label></div> : null}</div>
 
           <button className="submit-btn" onClick={handleSubmit} disabled={busy}>
             <svg viewBox="0 0 24 24">

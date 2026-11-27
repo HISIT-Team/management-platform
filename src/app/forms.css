@@ -83,6 +83,14 @@
 
 .form-page .conditional { margin-top: .65rem; }
 
+/* Branded file chooser. The native control remains accessible but is visually hidden. */
+.form-page .file-picker { min-height: 48px; margin: 0; padding: 5px; display: flex; align-items: center; gap: 10px; border: 1.5px dashed var(--f-gray-200); border-radius: var(--radius-md); background: var(--f-gray-50); cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.form-page .file-picker:hover { border-color: rgba(139,26,43,.48); background: var(--brand-light); }
+.form-page .file-picker:focus-within { border-color: var(--brand); background: var(--surface); box-shadow: 0 0 0 4px rgba(139,26,43,.08); }
+.form-page .file-picker input[type=file] { position: absolute; width: 1px; height: 1px; margin: -1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); }
+.form-page .file-picker-button { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 34px; padding: 0 13px; border-radius: 9px; background: var(--grad-brand); color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 5px 12px -7px rgba(139,26,43,.65); }
+.form-page .file-picker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--f-gray-600); font-size: 13px; font-weight: 500; }
+
 /* Big toggle selector */
 .form-page .big-selector { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
 .form-page .big-option { border: 1.5px solid var(--f-gray-200); border-radius: var(--radius-lg); padding: 1.1rem 0.75rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; transition: border-color .15s, background .15s, box-shadow .15s, transform .15s; user-select: none; -webkit-tap-highlight-color: transparent; background: var(--surface); }
