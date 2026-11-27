@@ -269,16 +269,25 @@ export async function listBudgetLines(school: string): Promise<BudgetLine[] | nu
 
 export async function createBudgetLine(
   school: string,
-  input: { name: string; caption: string; allocated: number; accent: string; accentSoft: string },
+  input: {
+    code: string;
+    name: string;
+    caption: string;
+    allocated: number;
+    accent: string;
+    accentSoft: string;
+  },
 ): Promise<string> {
   const { data, error } = await getSupabase().rpc('budget_create_line', {
     p_school: school,
+    p_code: input.code.trim().toUpperCase(),
     p_name: input.name,
     p_caption: input.caption,
     p_allocated: input.allocated,
     p_accent: input.accent,
     p_accent_soft: input.accentSoft,
   });
+
   if (error) throw new Error(error.message);
   return String(data);
 }

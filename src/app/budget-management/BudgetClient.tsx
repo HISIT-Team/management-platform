@@ -141,6 +141,7 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
   // New line / allocation change
   const [newLineOpen, setNewLineOpen] = useState(false);
   const [nlName, setNlName] = useState('');
+  const [nlCode, setNlCode] = useState('');
   const [nlCaption, setNlCaption] = useState('');
   const [nlAmount, setNlAmount] = useState('');
   const [nlAccent, setNlAccent] = useState(0);
@@ -342,30 +343,67 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
     setBusy(false);
   }
 
-  async function handleCreateLine() {
-    const amount = nlAmount.trim() ? parseAmount(nlAmount) : 0;
-    if (!nlName.trim()) return showToast('Dai un nome alla commessa.', true);
-    if (!Number.isFinite(amount) || amount < 0) return showToast('Inserisci uno stanziamento valido (0 o più).', true);
-    setBusy(true);
-    try {
-      const a = LINE_ACCENTS[nlAccent] ?? LINE_ACCENTS[0];
-      await createBudgetLine(school.code, { name: nlName.trim(), caption: nlCaption.trim(), allocated: Math.round(amount * 100) / 100, accent: a.accent, accentSoft: a.soft });
-      await reloadLines();
-      setNewLineOpen(false);
-      showToast(`Commessa «${nlName.trim()}» creata ✓`);
-    } catch (e) {
-      showToast('Errore: ' + (e as Error).message, true);
-    }
-    setBusy(false);
+async function handleCreateLine() {
+  const amount = nlAmount.trim() ? parseAmount(nlAmount) : 0;
+  const code = nlCode.trim().toUpperCase();
+
+  if (!code) {
+    return showToast('Inserisci il codice Job Order di Wethod.', true);
   }
 
-  function openNewLine() {
-    setNlName('');
-    setNlCaption('');
-    setNlAmount('');
-    setNlAccent(lines.length % LINE_ACCENTS.length);
-    setNewLineOpen(true);
+  if (!/^[A-Z0-9_-]{2,80}$/.test(code)) {
+    return showToast(
+      'Il codice Job Order può contenere solo lettere, numeri, trattini e underscore.',
+      true,
+    );
   }
+
+  if (!nlName.trim()) {
+    return showToast('Dai un nome alla commessa.', true);
+  }
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return showToast(
+      'Inserisci uno stanziamento valido (0 o più).',
+      true,
+    );
+  }
+
+  setBusy(true);
+
+  try {
+    const a = LINE_ACCENTS[nlAccent] ?? LINE_ACCENTS[0];
+
+    await createBudgetLine(school.code, {
+      code,
+      name: nlName.trim(),
+      caption: nlCaption.trim(),
+      allocated: Math.round(amount * 100) / 100,
+      accent: a.accent,
+      accentSoft: a.soft,
+    });
+
+    await reloadLines();
+    setNewLineOpen(false);
+
+    showToast(
+      `Commessa «${nlName.trim()}» creata con codice ${code} ✓`,
+    );
+  } catch (e) {
+    showToast('Errore: ' + (e as Error).message, true);
+  }
+
+  setBusy(false);
+}
+
+function openNewLine() {
+  setNlCode('');
+  setNlName('');
+  setNlCaption('');
+  setNlAmount('');
+  setNlAccent(lines.length % LINE_ACCENTS.length);
+  setNewLineOpen(true);
+}
 
   function openAdjust(l: BudgetLine) {
     setAdjLine(l);
@@ -904,7 +942,41 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
               <div className="b-modal-body">
                 <div className="field">
                   <label htmlFor="nl-name">
-                    Nome <span className="req">*</span>
+                   <div className="b-modal-body">
+
+  <div className="field">
+    <label htmlFor="nl-code">
+      Codice Wethod / Job Order <span className="req">*</span>
+    </label>
+
+    <input
+      id="nl-code"
+      type="text"
+      maxLength={80}
+      autoCapitalize="characters"
+      autoCorrect="off"
+      spellCheck={false}
+      placeholder="es. MY_2627_SUP"
+      value={nlCode}
+      onChange={(e) =>
+        setNlCode(
+          e.target.value
+            .toUpperCase()
+            .replace(/\s+/g, '_')
+            .replace(/[^A-Z0-9_-]/g, '')
+        )
+      }
+    />
+
+    <small className="field-help">
+      Deve corrispondere esattamente alla colonna Job_Order dell'export Wethod.
+    </small>
+  </div>
+
+  <div className="field">
+    <label htmlFor="nl-name">
+      Nome <span className="req">*</span>
+    </label> Nome <span className="req">*</span>
                   </label>
                   <input id="nl-name" type="text" maxLength={120} placeholder="es. Arredi aule 26/27" value={nlName} onChange={(e) => setNlName(e.target.value)} />
                 </div>
@@ -1049,22 +1121,30 @@ export default function BudgetClient({ school, backHref = '/budget', budgetLabel
 
         {toastNode}
       </div>
-      <style>{`
-        .budget-page .bline-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-        .budget-page .nl-colors { display: flex; gap: 8px; flex-wrap: wrap; }
-        .budget-page .nl-color { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1.5px #E2D8D6; cursor: pointer; }
-        .budget-page .nl-color.on { box-shadow: 0 0 0 2.5px var(--b-ink); }
-        .budget-page .adj-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .budget-page .adj-seg button { height: 42px; border-radius: 11px; border: 1.5px solid var(--b-line); background: #fff; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--b-muted); cursor: pointer; }
-        .budget-page .adj-seg button.on { border-color: var(--accent, var(--brand)); color: var(--accent, var(--brand)); background: var(--accent-soft, var(--brand-light)); }
-        .budget-page .adj-history { margin-top: 14px; border-top: 1px solid var(--b-line); padding-top: 10px; }
-        .budget-page .adj-history-title { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--b-faint); margin-bottom: 6px; }
-        .budget-page .adj-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
-        .budget-page .adj-row .pos { color: #1F5A48; font-weight: 700; }
-        .budget-page .adj-row .neg { color: #A32D2D; font-weight: 700; }
-        .budget-page .adj-row small { color: var(--b-muted); text-align: right; }
-        .budget-page .adj-remove { margin-right: auto; color: #A32D2D; }
-      `}</style>
+<style>{`
+  .budget-page .bline-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .budget-page .nl-colors { display: flex; gap: 8px; flex-wrap: wrap; }
+  .budget-page .nl-color { width: 30px; height: 30px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1.5px #E2D8D6; cursor: pointer; }
+  .budget-page .nl-color.on { box-shadow: 0 0 0 2.5px var(--b-ink); }
+  .budget-page .adj-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .budget-page .adj-seg button { height: 42px; border-radius: 11px; border: 1.5px solid var(--b-line); background: #fff; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--b-muted); cursor: pointer; }
+  .budget-page .adj-seg button.on { border-color: var(--accent, var(--brand)); color: var(--accent, var(--brand)); background: var(--accent-soft, var(--brand-light)); }
+  .budget-page .adj-history { margin-top: 14px; border-top: 1px solid var(--b-line); padding-top: 10px; }
+  .budget-page .adj-history-title { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--b-faint); margin-bottom: 6px; }
+  .budget-page .adj-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; font-size: 13px; }
+  .budget-page .adj-row .pos { color: #1F5A48; font-weight: 700; }
+  .budget-page .adj-row .neg { color: #A32D2D; font-weight: 700; }
+  .budget-page .adj-row small { color: var(--b-muted); text-align: right; }
+  .budget-page .adj-remove { margin-right: auto; color: #A32D2D; }
+
+  .budget-page .field-help {
+    display: block;
+    margin-top: 6px;
+    color: var(--b-muted);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+`}</style>
     </>
   );
   return guarded ? <AuthGuard>{content}</AuthGuard> : content;
