@@ -925,101 +925,166 @@ function openNewLine() {
             aria-modal="true"
             aria-label="Nuova commessa"
             onMouseDown={(ev) => {
-              if (ev.target === ev.currentTarget && !busy) setNewLineOpen(false);
+              if (ev.target === ev.currentTarget && !busy) {
+                setNewLineOpen(false);
+              }
             }}
           >
-            <div className="b-modal" style={{ ['--accent' as string]: LINE_ACCENTS[nlAccent].accent, ['--accent-soft' as string]: LINE_ACCENTS[nlAccent].soft } as React.CSSProperties}>
+            <div
+              className="b-modal"
+              style={
+                {
+                  ['--accent' as string]:
+                    LINE_ACCENTS[nlAccent]?.accent ??
+                    LINE_ACCENTS[0].accent,
+                  ['--accent-soft' as string]:
+                    LINE_ACCENTS[nlAccent]?.soft ??
+                    LINE_ACCENTS[0].soft,
+                } as React.CSSProperties
+              }
+            >
               <div className="b-modal-head">
                 <div className="mi">{IconPlus}</div>
+
                 <div>
                   <h2>Nuova commessa</h2>
-                  <p>H-IS {school.name} · comparirà subito nella dashboard</p>
+                  <p>
+                    H-IS {school.name} · comparirà subito nella dashboard
+                  </p>
                 </div>
-                <button className="b-modal-close" onClick={() => setNewLineOpen(false)} disabled={busy} aria-label="Chiudi">
+
+                <button
+                  className="b-modal-close"
+                  onClick={() => setNewLineOpen(false)}
+                  disabled={busy}
+                  aria-label="Chiudi"
+                >
                   {IconClose}
                 </button>
               </div>
+
               <div className="b-modal-body">
                 <div className="field">
-                  <label htmlFor="nl-name">
-                   <div className="b-modal-body">
+                  <label htmlFor="nl-code">
+                    Codice Wethod / Job Order{' '}
+                    <span className="req">*</span>
+                  </label>
 
-  <div className="field">
-    <label htmlFor="nl-code">
-      Codice Wethod / Job Order <span className="req">*</span>
-    </label>
+                  <input
+                    id="nl-code"
+                    type="text"
+                    maxLength={80}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="es. MY_2627_SUP"
+                    value={nlCode}
+                    onChange={(ev) => {
+                      const value = ev.target.value
+                        .toUpperCase()
+                        .replace(/\s+/g, '_')
+                        .replace(/[^A-Z0-9_-]/g, '');
 
-    <input
-      id="nl-code"
-      type="text"
-      maxLength={80}
-      autoCapitalize="characters"
-      autoCorrect="off"
-      spellCheck={false}
-      placeholder="es. MY_2627_SUP"
-      value={nlCode}
-      onChange={(e) =>
-        setNlCode(
-          e.target.value
-            .toUpperCase()
-            .replace(/\s+/g, '_')
-            .replace(/[^A-Z0-9_-]/g, '')
-        )
-      }
-    />
+                      setNlCode(value);
+                    }}
+                  />
 
-    <small className="field-help">
-      Deve corrispondere esattamente alla colonna Job_Order dell'export Wethod.
-    </small>
-  </div>
-
-<div className="field">
-  <label htmlFor="nl-name">
-    Nome <span className="req">*</span>
-  </label>
-  <input
-    id="nl-name"
-    type="text"
-    maxLength={120}
-    placeholder="es. Arredi aule 26/27"
-    value={nlName}
-    onChange={(e) => setNlName(e.target.value)}
-  />
-</div>
-                <div className="field">
-                  <label htmlFor="nl-caption">Descrizione breve</label>
-                  <input id="nl-caption" type="text" maxLength={160} placeholder="es. Banchi, sedie e lavagne" value={nlCaption} onChange={(e) => setNlCaption(e.target.value)} />
+                  <small className="field-help">
+                    Deve corrispondere esattamente alla colonna Job_Order
+                    dell&apos;export Wethod.
+                  </small>
                 </div>
+
                 <div className="field">
-                  <label htmlFor="nl-amount">Stanziamento iniziale</label>
+                  <label htmlFor="nl-name">
+                    Nome <span className="req">*</span>
+                  </label>
+
+                  <input
+                    id="nl-name"
+                    type="text"
+                    maxLength={120}
+                    placeholder="es. Arredi aule 26/27"
+                    value={nlName}
+                    onChange={(ev) => setNlName(ev.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="nl-caption">
+                    Descrizione breve
+                  </label>
+
+                  <input
+                    id="nl-caption"
+                    type="text"
+                    maxLength={160}
+                    placeholder="es. Banchi, sedie e lavagne"
+                    value={nlCaption}
+                    onChange={(ev) => setNlCaption(ev.target.value)}
+                  />
+                </div>
+
+                <div className="field">
+                  <label htmlFor="nl-amount">
+                    Stanziamento iniziale
+                  </label>
+
                   <div className="amount-wrap">
                     <span>€</span>
-                    <input id="nl-amount" type="text" inputMode="decimal" placeholder="10.000,00" value={nlAmount} onChange={(e) => setNlAmount(e.target.value)} />
+
+                    <input
+                      id="nl-amount"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="10.000,00"
+                      value={nlAmount}
+                      onChange={(ev) => setNlAmount(ev.target.value)}
+                    />
                   </div>
                 </div>
+
                 <div className="field">
                   <label>Colore</label>
-                  <div className="nl-colors" role="radiogroup" aria-label="Colore della commessa">
-                    {LINE_ACCENTS.map((a, i) => (
+
+                  <div
+                    className="nl-colors"
+                    role="radiogroup"
+                    aria-label="Colore della commessa"
+                  >
+                    {LINE_ACCENTS.map((accent, index) => (
                       <button
-                        key={a.accent}
+                        key={accent.accent}
                         type="button"
                         role="radio"
-                        aria-checked={nlAccent === i}
-                        aria-label={`Colore ${i + 1}`}
-                        className={'nl-color' + (nlAccent === i ? ' on' : '')}
-                        style={{ background: a.accent }}
-                        onClick={() => setNlAccent(i)}
+                        aria-checked={nlAccent === index}
+                        aria-label={`Colore ${index + 1}`}
+                        className={
+                          'nl-color' +
+                          (nlAccent === index ? ' on' : '')
+                        }
+                        style={{ background: accent.accent }}
+                        onClick={() => setNlAccent(index)}
                       />
                     ))}
                   </div>
                 </div>
               </div>
+
               <div className="b-modal-foot">
-                <button className="btn-quiet" onClick={() => setNewLineOpen(false)} disabled={busy}>
+                <button
+                  className="btn-quiet"
+                  onClick={() => setNewLineOpen(false)}
+                  disabled={busy}
+                >
                   Annulla
                 </button>
-                <button className="btn-primary" onClick={handleCreateLine} disabled={busy}>
+
+                <button
+                  className="btn-primary"
+                  onClick={handleCreateLine}
+                  disabled={busy}
+                >
                   {busy ? 'Creazione…' : 'Crea commessa'}
                 </button>
               </div>
